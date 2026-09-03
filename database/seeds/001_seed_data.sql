@@ -39,7 +39,7 @@ INSERT INTO locations (name, building, floor, room_or_area, latitude, longitude,
         ST_MakePoint(-90.257800, 38.647180)::geography
     ),
     (
-        "Children's ED Desk",
+        'Children''s ED Desk',
         'Children''s Hospital',   '1', 'Emergency Department',
         38.648100, -90.256400,
         ST_MakePoint(-90.256400, 38.648100)::geography

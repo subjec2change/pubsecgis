@@ -1,7 +1,7 @@
-# ── PUSECGIS: Initial Database Schema (001) ──────────────────────────
-# PostgreSQL 16 + PostGIS 3.4
-# Target: Public Safety Common Operating Picture (BJC Healthcare)
-# ──────────────────────────────────────────────────────────────────────
+-- ── PUSECGIS: Initial Database Schema (001) ──────────────────────────
+-- PostgreSQL 16 + PostGIS 3.4
+-- Target: Public Safety Common Operating Picture (BJC Healthcare)
+-- ──────────────────────────────────────────────────────────────────────
 
 BEGIN;
 
