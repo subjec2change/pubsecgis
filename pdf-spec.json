@@ -1,0 +1,202 @@
+{
+  "title": "PUSECGIS MVP Specification",
+  "author": "BJC Public Safety / Hermes Brainstorming",
+  "subject": "Common Operating Picture Platform MVP — Barnes-Jewish Hospital Public Safety",
+  "page_size": "Letter",
+  "page_numbers": true,
+  "elements": [
+    {
+      "type": "heading",
+      "text": "PUSECGIS — MVP Specification",
+      "level": 1
+    },
+    {
+      "type": "paragraph",
+      "text": "<b>Status:</b> Draft 0.1 — Proposal | <b>Date:</b> 2026-09-02<br/><b>Scope:</b> Barnes-Jewish Hospital Public Safety — Common Operating Picture<br/><b>Goal:</b> A shared visual map capturing incidents, problem areas, and shift-to-shift information across BJC's campus — broadcast to all satellite offices and ED desks."
+    },
+    {
+      "type": "pagebreak"
+    },
+    {
+      "type": "heading",
+      "text": "1. Concept",
+      "level": 2
+    },
+    {
+      "type": "paragraph",
+      "text": "<b>What it does:</b> A shared operating map for BJC Public Safety that captures incidents (manual entry from officers/dispatch), visualizes them geographically on campus floor plans, and broadcasts live status to all satellite offices and ED desks.<br/><br/><b>Why it matters:</b> Currently, shift-to-shift information is lost over radio. Officers walk a floor, note problem areas, agitated patients, duress events — then that knowledge evaporates when shift changes. This tool preserves that information visually.<br/><br/><b>Who it's for:</b> BJC Public Safety officers, floor rounding staff, Dispatch, and Public Safety leads.<br/><br/><b>Where it runs:</b> BJC internal network only. No internet dependency."
+    },
+    {
+      "type": "pagebreak"
+    },
+    {
+      "type": "heading",
+      "text": "2. Display & Users",
+      "level": 2
+    },
+    {
+      "type": "heading",
+      "text": "Broadcast Screens (6 total — read-only, auto-refreshing)",
+      "level": 3
+    },
+    {
+      "type": "table",
+      "headers": ["Location", "Type", "Purpose"],
+      "rows": [
+        ["Main Public Safety Control", "TV/Monitor", "Primary situational awareness hub"],
+        ["Satellite Office #1", "TV/Monitor", "Regional status visibility"],
+        ["Satellite Office #2", "TV/Monitor", "Regional status visibility"],
+        ["Satellite Office #3", "TV/Monitor", "Regional status visibility"],
+        ["Childrens' ED Desk", "Monitor", "Pediatric ED staff awareness"],
+        ["Adult ED Desk", "Monitor", "Adult ED staff awareness"]
+      ]
+    },
+    {
+      "type": "heading",
+      "text": "Officer Workstations (write-access)",
+      "level": 3
+    },
+    {
+      "type": "table",
+      "headers": ["Role", "Access"],
+      "rows": [
+        ["Floor Rounding Officers", "Log incidents, add notes"],
+        ["Dispatch", "Log incidents, add notes"],
+        ["Public Safety Leads", "Edit/close incidents, view reports"],
+        ["Admin", "Manage users, locations, config"]
+      ]
+    },
+    {
+      "type": "pagebreak"
+    },
+    {
+      "type": "heading",
+      "text": "3. Data Model",
+      "level": 2
+    },
+    {
+      "type": "paragraph",
+      "text": "<b>Incident Types & Color Map:</b>"
+    },
+    {
+      "type": "table",
+      "headers": ["Type", "Color", "Hex", "Meaning"],
+      "rows": [
+        ["Victim of Violence", "Red", "#DC2626", "Assault, physical altercations"],
+        ["Agitated Visitor", "Orange", "#EA580C", "Family/visitor agitation"],
+        ["Problematic Patient", "Yellow", "#D97706", "Behavioral, recurring disturbance"],
+        ["Patient with Sitter", "Blue", "#2563EB", "Room sitter assigned"],
+        ["Elopment Patient", "Green", "#16A34A", "Wandering attempt, elopment alert"],
+        ["Duress Alarm Call", "Dark Gray", "#374151", "Staff duress button triggered"],
+        ["Hardware / Facility Issue", "Gray", "#6B7280", "Broken door, camera, lock, alarm"],
+        ["General Safety Concern", "Purple", "#7E22CE", "Suspicious activity, problem area notes"]
+      ]
+    },
+    {
+      "type": "pagebreak"
+    },
+    {
+      "type": "heading",
+      "text": "Core Tables",
+      "level": 3
+    },
+    {
+      "type": "paragraph",
+      "text": "<b>shifts:</b> id, shift_date, shift_code (DAY/EVE/NIGHT), start_time, end_time, created_at<br/><br/><b>incidents:</b> id, shift_id, incident_type, location_ref (text), description, status (open/resolved/monitoring), logged_by, created_at, updated_at<br/><br/><b>shift_handoff:</b> id, shift_id, location_ref (nullable), note, logged_by, created_at<br/><br/><b>users:</b> id, username, display_name, role (officer/dispatch/lead/admin), active"
+    },
+    {
+      "type": "pagebreak"
+    },
+    {
+      "type": "heading",
+      "text": "4. API Endpoints",
+      "level": 2
+    },
+    {
+      "type": "paragraph",
+      "text": "<b>Auth:</b> POST /api/auth/login, GET /api/auth/me<br/><br/><b>Incidents (auth required):</b> GET /api/incidents?status=&type=&date=, POST /api/incidents, PUT /api/incidents/:id, DELETE /api/incidents/:id<br/><br/><b>Broadcast (no auth):</b> GET /api/broadcast/incidents?hours=2, GET /api/broadcast/config<br/><br/><b>Handoff:</b> GET /api/handoff/notes?shift=&date=, POST /api/handoff/notes<br/><br/><b>Locations/Users:</b> GET /api/locations?q=, GET /api/users"
+    },
+    {
+      "type": "pagebreak"
+    },
+    {
+      "type": "heading",
+      "text": "5. UI Screens",
+      "level": 2
+    },
+    {
+      "type": "paragraph",
+      "text": "<b>Officer UI:</b> Map view with incident plotting, quick log form (Type dropdown, Location text/search, Description text), Open/Resolved toggle, Shift handoff note area, Incident list with filters."
+    },
+    {
+      "type": "paragraph",
+      "text": "<b>Broadcast UI (Kiosk):</b> Fullscreen map with color-coded markers, auto-refresh every 30 seconds, incident sidebar (scrollable, newest at top), shift indicator, filter bar, kiosk-safe (fullscreen, prevents exit, auto-reloads)."
+    },
+    {
+      "type": "pagebreak"
+    },
+    {
+      "type": "heading",
+      "text": "6. Tech Stack",
+      "level": 2
+    },
+    {
+      "type": "table",
+      "headers": ["Layer", "Technology", "Rationale"],
+      "rows": [
+        ["Backend", "Python 3.11, FastAPI, Uvicorn", "Clean, fast, extensible"],
+        ["Database", "PostgreSQL 16 + PostGIS 3.4", "Mature open-source GIS"],
+        ["Frontend (Officer)", "React 18, Vite, Leaflet", "Component framework + mapping"],
+        ["Frontend (Broadcast)", "React 18, Leaflet, Kiosk wrapper", "Reuses map engine, read-only"],
+        ["Auth", "Session cookies", "Internal only, no SSO for MVP"],
+        ["Proxy", "Nginx", "Routing, static files, HTTPS"],
+        ["Hosting", "Linux server, BJC internal", "VM or bare metal"],
+        ["Backup", "Daily pg_dump", "Simple, reliable"]
+      ]
+    },
+    {
+      "type": "pagebreak"
+    },
+    {
+      "type": "heading",
+      "text": "7. Implementation Phases",
+      "level": 2
+    },
+    {
+      "type": "paragraph",
+      "text": "<b>Phase 1: MVP Core (Weeks 1-3)</b><br/>&bull; PostgreSQL + PostGIS setup<br/>&bull; FastAPI backend (Incidents, Shifts, Users, Handoff, Auth)<br/>&bull; Officer UI (map, incident entry, filter, handoff)<br/>&bull; Broadcast UI (fullscreen map, sidebar, 30s auto-refresh)<br/>&bull; Kiosk mode script (auto-fullscreen, auto-restart)<br/>&bull; Deploy to BJC internal network<br/>&bull; Smoke test with 2-3 officers"
+    },
+    {
+      "type": "paragraph",
+      "text": "<b>Phase 2: Enhancements (Weeks 4-6)</b><br/>&bull; Duress alarm CSV import & parser<br/>&bull; Hotspot heatmap overlay<br/>&bull; Floor plan overlay (PDF base map)<br/>&bull; Trend charts / reports (weekly/monthly)<br/>&bull; Exportable reports (PDF/CSV)"
+    },
+    {
+      "type": "paragraph",
+      "text": "<b>Phase 3: Integration (Weeks 7-10)</b><br/>&bull; Duress alarm system API integration<br/>&bull; Radio/CAD integration (if available)<br/>&bull; Mobile-responsive officer UI<br/>&bull; RBAC (officer vs. lead vs. admin)<br/>&bull; Audit logging & security hardening"
+    },
+    {
+      "type": "pagebreak"
+    },
+    {
+      "type": "heading",
+      "text": "8. Acceptance Criteria (MVP)",
+      "level": 2
+    },
+    {
+      "type": "paragraph",
+      "text": "&bull; Officers can log incidents (type, location, notes)<br/>&bull; Incidents appear on map in correct colors<br/>&bull; Broadcast screens show all active incidents with 30s auto-refresh<br/>&bull; Broadcast screens display at 1920x1080 without map scrolling<br/>&bull; Shift handoff notes are captured and visible per shift<br/>&bull; 6 display targets can view broadcast simultaneously<br/>&bull; All runs on BJC internal network (no internet dependency)<br/>&bull; CSV duress alarm import works (Phase 2)"
+    },
+    {
+      "type": "pagebreak"
+    },
+    {
+      "type": "heading",
+      "text": "9. Open Questions",
+      "level": 2
+    },
+    {
+      "type": "paragraph",
+      "text": "1. Floor plan format — PDF exists, are CAD files available?<br/>2. MTF CSV sample — can we get one export?<br/>3. User roster — how many active officers/dispatch?<br/>4. Server specs — VM or bare metal? RAM, storage?<br/>5. Duress alarm system vendor — Cognosos, kontakt.io, etc.? API docs?<br/>6. Severity levels — need 1-5 rating or type is enough?<br/>7. Incident retention — how long should resolved incidents stay visible?<br/>8. Offline mode — should broadcast cache if network drops?<br/>9. Notifications — audible/visual alerts for new incidents?<br/>10. Escalation workflow — auto-escalate persistent incidents?"
+    }
+  ]
+}
