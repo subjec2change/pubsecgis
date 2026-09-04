@@ -41,9 +41,17 @@ export default function OfficerMap({
   const streetLayersRef = useRef<L.Layer | null>(null);
   const broadcastMarkerPositionsRef = useRef<Map<string, [number, number]>>(new Map());
 
-  // Store callbacks in refs so they don't trigger map recreation (same pattern as kiosk)
+  // Store callbacks in refs so they don't trigger re-renders (same pattern as kiosk)
   const onMapClickRef = useRef(onMapClick);
   onMapClickRef.current = onMapClick;
+  const onIncidentClickRef = useRef(onIncidentClick);
+  onIncidentClickRef.current = onIncidentClick;
+  const onCurrentViewChangeRef = useRef(onCurrentViewChange);
+  onCurrentViewChangeRef.current = onCurrentViewChange;
+  const onBuildingSelectRef = useRef(onBuildingSelect);
+  onBuildingSelectRef.current = onBuildingSelect;
+  const onFloorSelectRef = useRef(onFloorSelect);
+  onFloorSelectRef.current = onFloorSelect;
 
   // Placeholder floorplan buildings (ready to replace with real floorplan images)
   const floorplanBuildings = [
@@ -202,31 +210,21 @@ export default function OfficerMap({
     };
   }, []); // Empty deps — map created once, persists like the kiosk
 
-  // CRITICAL: Only update view when center/zoom actually change (not on every render)
   const prevCenterRef = useRef<[number, number]>([38.6270, -90.2418]);
   const prevZoomRef = useRef<number>(17);
-
-  // Debug: log every render to see what's happening
-  let renderCount = 0;
-  renderCount++;
 
   // Update center/zoom without recreating the map
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     
-    console.log(`[OfficerMap] renderCount=${renderCount}, center=[${center[0]},${center[1]}], zoom=${zoom}, prevCenter=[${prevCenterRef.current[0]},${prevCenterRef.current[1]}], prevZoom=${prevZoomRef.current}`);
-
     // Only update if values actually changed (not just reference)
     if (prevCenterRef.current[0] !== center[0] ||
         prevCenterRef.current[1] !== center[1] ||
         prevZoomRef.current !== zoom) {
-      console.log(`[OfficerMap] VIEW CHANGED — calling setView(${center[0]}, ${center[1]}, ${zoom})`);
       map.setView(center, zoom, { animate: true, duration: 0.5 });
       prevCenterRef.current = center;
       prevZoomRef.current = zoom;
-    } else {
-      console.log(`[OfficerMap] NO VIEW CHANGE — guard prevented setView`);
     }
   }, [center, zoom]);
 
