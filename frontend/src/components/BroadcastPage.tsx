@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getBroadcastIncidents, getColorConfig } from '../api/endpoints';
 import { INCIDENT_TYPE_LABELS, DEFAULT_COLOR_MAP } from '../types';
@@ -40,6 +40,8 @@ export default function BroadcastPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentShift, setCurrentShift] = useState('');
   const [shiftIcon, setShiftIcon] = useState('');
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const [isHovering, setIsHovering] = useState(false);
 
   const getShiftInfo = useCallback(() => {
     const hour = new Date().getHours() + new Date().getMinutes() / 60;
@@ -190,6 +192,30 @@ export default function BroadcastPage() {
     return () => clearInterval(interval);
   }, [loadBroadcast]);
 
+  // Auto-scroll sidebar
+  useEffect(() => {
+    if (!sidebarRef.current || sortedIncidents.length === 0) return;
+    const sidebar = sidebarRef.current;
+    let scrollSpeed = 0.5; // pixels per tick
+    let animationFrame: number;
+    
+    const scroll = () => {
+      if (isHovering || !sidebarRef.current) {
+        animationFrame = requestAnimationFrame(scroll);
+        return;
+      }
+      sidebar.scrollTop += scrollSpeed;
+      // If we hit the bottom, scroll back to top
+      if (sidebar.scrollTop >= sidebar.scrollHeight - sidebar.clientHeight - 2) {
+        sidebar.scrollTo(0, 0);
+      }
+      animationFrame = requestAnimationFrame(scroll);
+    };
+    
+    animationFrame = requestAnimationFrame(scroll);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [sortedIncidents.length, isHovering]);
+
   const screenTitle = SCREEN_TITLES[screenId] || 'Broadcast Screen';
 
   // Build color lookup from config or default
@@ -293,8 +319,13 @@ export default function BroadcastPage() {
           />
         </div>
 
-        {/* Incident sidebar — right side, scrollable */}
-        <div className="broadcast-sidebar">
+        {/* Incident sidebar — right side, scrollable with auto-scroll */}
+        <div 
+          className="broadcast-sidebar"
+          ref={sidebarRef}
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
+        >
           {loading ? (
             <div className="loading-state">
               <span className="spinner"></span>
@@ -328,9 +359,6 @@ export default function BroadcastPage() {
                       <div className="response-phase">
                         {RESPONSE_PHASE_LABELS[incident.response_phase] || incident.response_phase}
                       </div>
-                    )}
-                    {incident.description && (
-                      <div className="description">{incident.description}</div>
                     )}
                     <div className="timestamp">
                       {new Date(incident.created_at).toLocaleString('en-US', {
