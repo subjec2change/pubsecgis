@@ -28,6 +28,11 @@ export default function OfficerPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingIncident, setEditingIncident] = useState<Incident | null>(null);
 
+  // Floorplan navigation state
+  const [currentView, setCurrentView] = useState<'streetmap' | 'floorplan'>('streetmap');
+  const [selectedBuildingName, setSelectedBuildingName] = useState<string | null>(null);
+  const [selectedFloorName, setSelectedFloorName] = useState<string | null>(null);
+
   // Filters
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -107,6 +112,18 @@ export default function OfficerPage() {
   const handleMapClick = () => {
     setEditingIncident(null);
     setFormOpen(true);
+  };
+
+  const handleCurrentViewChange = (view: 'streetmap' | 'floorplan') => {
+    setCurrentView(view);
+  };
+
+  const handleBuildingSelect = (_buildingId: string | null, buildingName?: string) => {
+    setSelectedBuildingName(buildingName || null);
+  };
+
+  const handleFloorSelect = (_floorId: string | null, floorName?: string) => {
+    setSelectedFloorName(floorName || null);
   };
 
   const handleIncidentEdit = (incident: Incident) => {
@@ -207,6 +224,10 @@ export default function OfficerPage() {
           onIncidentClick={handleIncidentSelect}
           onMapClick={handleMapClick}
           selectedIncidentId={selectedIncidentId}
+          currentView={currentView}
+          onCurrentViewChange={handleCurrentViewChange}
+          onBuildingSelect={handleBuildingSelect}
+          onFloorSelect={handleFloorSelect}
         />
 
         <div className="map-overlay">
@@ -231,6 +252,8 @@ export default function OfficerPage() {
           onSubmit={editingIncident ? handleIncidentUpdated : handleIncidentCreated}
           editIncident={editingIncident}
           initialShift={filterShift}
+          preSelectedBuilding={selectedBuildingName}
+          preSelectedFloor={selectedFloorName}
         />
       )}
     </div>

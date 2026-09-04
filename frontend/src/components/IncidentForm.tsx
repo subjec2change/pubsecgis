@@ -10,6 +10,8 @@ interface IncidentFormProps {
   onSubmit: () => void;
   editIncident?: Incident | null;
   initialShift?: string;
+  preSelectedBuilding?: string | null;
+  preSelectedFloor?: string | null;
 }
 
 export default function IncidentForm({
@@ -18,6 +20,8 @@ export default function IncidentForm({
   onSubmit,
   editIncident,
   initialShift,
+  preSelectedBuilding,
+  preSelectedFloor,
 }: IncidentFormProps) {
   const [shift, setShift] = useState(initialShift || 'day');
   const [incidentType, setIncidentType] = useState<IncidentType>(
@@ -71,6 +75,17 @@ export default function IncidentForm({
     };
   }, [locationQuery]);
 
+  // Pre-fill location from floorplan selection when opening form
+  useEffect(() => {
+    if (isOpen && !editIncident && (preSelectedBuilding || preSelectedFloor)) {
+      const loc = preSelectedFloor
+        ? `${preSelectedBuilding} - ${preSelectedFloor}`
+        : preSelectedBuilding || '';
+      setLocationQuery(loc);
+      setLocationRef(loc);
+    }
+  }, [isOpen, preSelectedBuilding, preSelectedFloor, editIncident]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -114,6 +129,41 @@ export default function IncidentForm({
 
         <form onSubmit={handleSubmit}>
           <ShiftSelector value={shift} onChange={setShift} />
+
+          {/* Floorplan Location Selection */}
+          <div className="form-group">
+            <label htmlFor="floorplan-building">Building / Floor</label>
+            <select
+              id="floorplan-building"
+              value={locationRef}
+              onChange={(e) => {
+                setLocationQuery(e.target.value);
+                setLocationRef(e.target.value);
+              }}
+            >
+              <option value="">— Select Building / Floor —</option>
+              <optgroup label="Main Building">
+                <option value="Main Building - Floor 1 - Lobby">Main Building - Floor 1 - Lobby</option>
+                <option value="Main Building - Floor 2 - Offices">Main Building - Floor 2 - Offices</option>
+                <option value="Main Building - Floor 3 - Medical">Main Building - Floor 3 - Medical</option>
+                <option value="Main Building - Floor 1 - Emergency">Main Wing (B Floor) - Floor 1 - Emergency</option>
+                <option value="Main Building - Floor 2 - Surgery">Main Wing (B Floor) - Floor 2 - Surgery</option>
+              </optgroup>
+              <optgroup label="Children's Hospital">
+                <option value="Children's Hospital - Floor 1 - ER">Children's Hospital - Floor 1 - ER</option>
+                <option value="Children's Hospital - Floor 2 - Inpatient">Children's Hospital - Floor 2 - Inpatient</option>
+                <option value="Children's Hospital - Floor 3 - ICN">Children's Hospital - Floor 3 - ICN</option>
+              </optgroup>
+              <optgroup label="Adult ED">
+                <option value="Adult ED - Floor 1 - Triage">Adult ED - Floor 1 - Triage</option>
+                <option value="Adult ED - Floor 2 - Consults">Adult ED - Floor 2 - Consults</option>
+              </optgroup>
+              <optgroup label="Parking Garage">
+                <option value="Parking Garage - Level -1">Parking Garage - Level -1</option>
+                <option value="Parking Garage - Level -2">Parking Garage - Level -2</option>
+              </optgroup>
+            </select>
+          </div>
 
           <div className="form-group">
             <label htmlFor="incident-type">Incident Type</label>

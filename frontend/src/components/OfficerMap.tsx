@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Incident, BroadcastIncident, ColorMapping } from '../types';
@@ -14,7 +14,9 @@ interface OfficerMapProps {
   center?: [number, number];
   zoom?: number;
   currentView?: 'streetmap' | 'floorplan';
-  onMapReady?: (map: L.Map) => void;
+  onCurrentViewChange?: (view: 'streetmap' | 'floorplan') => void;
+  onBuildingSelect?: (buildingId: string | null, buildingName?: string) => void;
+  onFloorSelect?: (floorId: string | null, floorName?: string) => void;
 }
 
 export default function OfficerMap({
@@ -27,6 +29,9 @@ export default function OfficerMap({
   center = [38.6270, -90.2418],
   zoom = 17,
   currentView = 'streetmap',
+  onCurrentViewChange,
+  onBuildingSelect,
+  onFloorSelect,
 }: OfficerMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,11 +41,14 @@ export default function OfficerMap({
 
   // Placeholder floorplan buildings (ready to replace with real floorplan images)
   const floorplanBuildings = [
-    { name: 'Main Building', color: '#3B82F6', bounds: [[38.6273, -90.2425], [38.6271, -90.2415]] },
-    { name: 'Children\'s Hospital', color: '#22C55E', bounds: [[38.6265, -90.2420], [38.6260, -90.2410]] },
-    { name: 'Adult ED', color: '#EF4444', bounds: [[38.6268, -90.2412], [38.6264, -90.2405]] },
-    { name: 'Parking Garage', color: '#6B7280', bounds: [[38.6275, -90.2408], [38.6272, -90.2400]] },
+    { id: 'main-building', name: 'Main Building', color: '#3B82F6', bounds: [[38.6273, -90.2425], [38.6271, -90.2415]], floors: [{ id: 'a1', name: 'Floor 1 - Lobby' }, { id: 'a2', name: 'Floor 2 - Offices' }, { id: 'a3', name: 'Floor 3 - Medical' }] },
+    { id: 'childrens-hospital', name: "Children's Hospital", color: '#22C55E', bounds: [[38.6265, -90.2420], [38.6260, -90.2410]], floors: [{ id: 'c1', name: 'Floor 1 - ER' }, { id: 'c2', name: 'Floor 2 - Inpatient' }, { id: 'c3', name: 'Floor 3 - ICN' }] },
+    { id: 'adult-ed', name: 'Adult ED', color: '#EF4444', bounds: [[38.6268, -90.2412], [38.6264, -90.2405]], floors: [{ id: 'd1', name: 'Floor 1 - Triage' }, { id: 'd2', name: 'Floor 2 - Consults' }] },
+    { id: 'parking-garage', name: 'Parking Garage', color: '#6B7280', bounds: [[38.6275, -90.2408], [38.6272, -90.2400]], floors: [{ id: 'g1', name: 'Level -1' }, { id: 'g2', name: 'Level -2' }] },
   ];
+
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
 
   useEffect(() => {
     if (currentView === 'floorplan') {
@@ -54,13 +62,57 @@ export default function OfficerMap({
           const fg = L.layerGroup();
           floorplanBuildings.forEach((building) => {
             const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
-            L.rectangle(building.bounds as L.LatLngBoundsLiteral, {
+            const rectangle = L.rectangle(building.bounds as L.LatLngBoundsLiteral, {
               color: building.color,
               fillColor: building.color,
               fillOpacity: 0.25,
               weight: 2,
               dashArray: '5 5',
             }).addTo(fg);
+            // Click handler for building selection
+            rectangle.on('click', () => {
+              const isSelected = selectedBuildingId === building.id;
+              if (isSelected) {
+                setSelectedBuildingId(null);
+                setSelectedFloorId(null);
+                onBuildingSelect?.(null);
+                onFloorSelect?.(null);
+              } else {
+                setSelectedBuildingId(building.id);
+                setSelectedFloorId(null);
+                onBuildingSelect?.(building.id, building.name);
+                onFloorSelect?.(null);
+                // Pan map to building center
+                map.fitBounds(building.bounds as L.LatLngBoundsLiteral, { padding: [50, 50] });
+              }
+            });
+            // Add floor markers inside building
+            if (building.floors && building.floors.length > 0) {
+              const floorCenters: L.LatLngTuple[] = [];
+              building.floors.forEach((floor, idx) => {
+                const latStep = (ne[0] - sw[0]) / (building.floors!.length + 1);
+                const lngStep = (ne[1] - sw[1]) / (building.floors!.length + 1);
+                const center: L.LatLngTuple = [
+                  sw[0] + latStep * (idx + 1),
+                  sw[1] + lngStep * (idx + 1),
+                ];
+                floorCenters.push(center);
+                const floorMarker = L.circleMarker(center, {
+                  radius: 8,
+                  fillColor: '#ffffff',
+                  fillOpacity: 0.8,
+                  color: building.color,
+                  weight: 2,
+                }).addTo(fg);
+                floorMarker.bindPopup(`<strong>${floor.name}</strong>`);
+                floorMarker.on('click', () => {
+                  setSelectedFloorId(floor.id);
+                  onFloorSelect?.(floor.id, floor.name);
+                  map.setView(center, 19, { animate: true, duration: 0.3 });
+                });
+              });
+            }
+            // Add building name label at top
             const center: L.LatLngTuple = [
               (sw[0] + ne[0]) / 2,
               (sw[1] + ne[1]) / 2,
@@ -240,6 +292,138 @@ export default function OfficerMap({
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      {/* Floorplan View Switcher */}
+      <div style={{
+        position: 'absolute', top: '1rem', left: '1rem', zIndex: 1000,
+        background: 'rgba(11, 18, 25, 0.95)', border: '1px solid var(--border)',
+        padding: '0.75rem 1rem', borderRadius: '6px',
+        fontFamily: "'IBM Plex Sans', sans-serif",
+      }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={() => onCurrentViewChange?.('streetmap')}
+            style={{
+              padding: '0.4rem 0.75rem',
+              background: currentView === 'streetmap' ? '#3B82F6' : 'transparent',
+              color: currentView === 'streetmap' ? '#ffffff' : 'var(--text-secondary)',
+              border: `1px solid ${currentView === 'streetmap' ? '#3B82F6' : 'var(--border)'}`,
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: 500,
+              fontFamily: "'IBM Plex Sans', sans-serif",
+            }}
+          >
+            Street Map
+          </button>
+          <button
+            onClick={() => onCurrentViewChange?.('floorplan')}
+            style={{
+              padding: '0.4rem 0.75rem',
+              background: currentView === 'floorplan' ? '#3B82F6' : 'transparent',
+              color: currentView === 'floorplan' ? '#ffffff' : 'var(--text-secondary)',
+              border: `1px solid ${currentView === 'floorplan' ? '#3B82F6' : 'var(--border)'}`,
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: 500,
+              fontFamily: "'IBM Plex Sans', sans-serif",
+            }}
+          >
+            Floorplan
+          </button>
+        </div>
+      </div>
+      {/* Building/Floor Selection Panel */}
+      {currentView === 'floorplan' && (
+        <div style={{
+          position: 'absolute', top: '1rem', right: '1rem', zIndex: 1000,
+          background: 'rgba(11, 18, 25, 0.95)', border: '1px solid var(--border)',
+          padding: '0.75rem 1rem', borderRadius: '6px',
+          fontFamily: "'IBM Plex Sans', sans-serif",
+          maxWidth: '280px',
+        }}>
+          <div style={{
+            fontWeight: 600,
+            color: 'var(--text-bright)',
+            marginBottom: '0.5rem',
+            fontSize: '0.75rem',
+            letterSpacing: '0.1em',
+          }}>
+            CURRENT LOCATION
+          </div>
+          {/* Building selector */}
+          <div style={{
+            background: selectedBuildingId ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+            border: selectedBuildingId ? '1px solid #3B82F6' : '1px solid var(--border)',
+            borderRadius: '4px',
+            padding: '0.5rem',
+            marginBottom: '0.5rem',
+          }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+              BUILDING
+            </div>
+            <div style={{
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              color: selectedBuildingId ? '#ffffff' : 'var(--text-secondary)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {floorplanBuildings.find((b) => b.id === selectedBuildingId)?.name || 'None selected'}
+            </div>
+          </div>
+          {/* Floor selector */}
+          {selectedBuildingId && (
+            <div style={{
+              background: selectedFloorId ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+              border: selectedFloorId ? '1px solid #3B82F6' : '1px solid var(--border)',
+              borderRadius: '4px',
+              padding: '0.5rem',
+            }}>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                FLOOR
+              </div>
+              <div style={{
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: selectedFloorId ? '#ffffff' : 'var(--text-secondary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {floorplanBuildings.find((b) => b.id === selectedBuildingId)?.floors?.find((f) => f.id === selectedFloorId)?.name || 'None selected'}
+              </div>
+            </div>
+          )}
+          {/* Reset button */}
+          {(selectedBuildingId || selectedFloorId) && (
+            <button
+              onClick={() => {
+                setSelectedBuildingId(null);
+                setSelectedFloorId(null);
+                onBuildingSelect?.(null);
+                onFloorSelect?.(null);
+              }}
+              style={{
+                width: '100%',
+                marginTop: '0.5rem',
+                padding: '0.4rem',
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                borderRadius: '4px',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '0.7rem',
+                fontFamily: "'IBM Plex Sans', sans-serif",
+              }}
+            >
+              Clear Selection
+            </button>
+          )}
+        </div>
+      )}
       {/* Map Legend */}
       <div style={{
         position: 'absolute', bottom: '1rem', left: '1rem', zIndex: 1000,
