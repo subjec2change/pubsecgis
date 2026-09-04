@@ -36,11 +36,11 @@ export default function OfficerMap({
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map());
+  const broadcastMarkersRef = useRef<Map<string, L.CircleMarker>>(new Map());
   const floorplanLayersRef = useRef<L.LayerGroup | null>(null);
   const streetLayersRef = useRef<L.Layer | null>(null);
-  // Fix map pulsing: store marker positions persistently so they don't reposition on every render
-  const markerPositionsRef = useRef<Map<string, [number, number]>>(new Map());
   const broadcastMarkerPositionsRef = useRef<Map<string, [number, number]>>(new Map());
+
 
   // Placeholder floorplan buildings (ready to replace with real floorplan images)
   const floorplanBuildings = [
@@ -53,28 +53,29 @@ export default function OfficerMap({
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
   const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
 
-  // Fix floorplan toggle: always ensure floorplan is visible and map shows the buildings
   useEffect(() => {
     if (currentView === 'floorplan') {
       const map = mapRef.current;
       if (map) {
-        // Show floorplan overlay, hide tiles (no remove — just hide)
+        // Hide street map tiles — remove layer AND hide the tile pane div
         if (streetLayersRef.current) {
-          (streetLayersRef.current as any).setOpacity(0);
+          map.removeLayer(streetLayersRef.current);
+          map.getContainer().querySelector('.leaflet-tile-pane')?.setAttribute('style', 'display:none');
         }
+        // Pan/zoom to the building area so rectangles are clearly visible
+        map.setView([38.6268, -90.2418], 18, { animate: true, duration: 0.3 });
         // Always ensure floorplan layer exists and is visible
         if (!floorplanLayersRef.current) {
           const fg = L.layerGroup();
           floorplanBuildings.forEach((building) => {
             const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
             const rectangle = L.rectangle(building.bounds as L.LatLngBoundsLiteral, {
-              color: building.color,
+              color: '#ffffff',
               fillColor: building.color,
-              fillOpacity: 0.25,
+              fillOpacity: 0.5,
               weight: 2,
               dashArray: '5 5',
             }).addTo(fg);
-            // Click handler for building selection
             rectangle.on('click', () => {
               const isSelected = selectedBuildingId === building.id;
               if (isSelected) {
@@ -87,37 +88,24 @@ export default function OfficerMap({
                 setSelectedFloorId(null);
                 onBuildingSelect?.(building.id, building.name);
                 onFloorSelect?.(null);
-                // Pan map to building center
-                map.fitBounds(building.bounds as L.LatLngBoundsLiteral, { padding: [50, 50] });
               }
             });
-            // Add floor markers inside building
             if (building.floors && building.floors.length > 0) {
-              const floorCenters: L.LatLngTuple[] = [];
-              building.floors.forEach((floor, idx) => {
-                const latStep = (ne[0] - sw[0]) / (building.floors!.length + 1);
-                const lngStep = (ne[1] - sw[1]) / (building.floors!.length + 1);
+              building.floors.forEach((floor) => {
                 const center: L.LatLngTuple = [
-                  sw[0] + latStep * (idx + 1),
-                  sw[1] + lngStep * (idx + 1),
+                  (sw[0] + ne[0]) / 2,
+                  (sw[1] + ne[1]) / 2,
                 ];
-                floorCenters.push(center);
                 const floorMarker = L.circleMarker(center, {
-                  radius: 8,
+                  radius: 6,
                   fillColor: '#ffffff',
                   fillOpacity: 0.8,
                   color: building.color,
                   weight: 2,
                 }).addTo(fg);
                 floorMarker.bindPopup(`<strong>${floor.name}</strong>`);
-                floorMarker.on('click', () => {
-                  setSelectedFloorId(floor.id);
-                  onFloorSelect?.(floor.id, floor.name);
-                  map.setView(center, 19, { animate: true, duration: 0.3 });
-                });
               });
             }
-            // Add building name label at top
             const center: L.LatLngTuple = [
               (sw[0] + ne[0]) / 2,
               (sw[1] + ne[1]) / 2,
@@ -135,27 +123,21 @@ export default function OfficerMap({
           fg.addTo(map);
           floorplanLayersRef.current = fg;
         }
-        // CRITICAL: Ensure floorplan layer is visible (toggle opacity on/off each view switch)
         (floorplanLayersRef.current as any).setOpacity(1);
-        // Fit map to all buildings so user can see them
-        const sw: L.LatLngTuple = [90, -180]; // max southwest
-        const ne: L.LatLngTuple = [-90, 180]; // max northeast
-        floorplanBuildings.forEach((b) => {
-          const [min, max] = b.bounds as [L.LatLngTuple, L.LatLngTuple];
-          if (min[0] < sw[0]) sw[0] = min[0];
-          if (min[1] < sw[1]) sw[1] = min[1];
-          if (max[0] > ne[0]) ne[0] = max[0];
-          if (max[1] > ne[1]) ne[1] = max[1];
-        });
-        map.fitBounds([sw, ne] as L.LatLngBoundsLiteral, { padding: [50, 50], maxZoom: 17 });
       }
     } else {
-      // Street map mode - show tiles, hide floorplan
-      if (streetLayersRef.current) {
-        (streetLayersRef.current as any).setOpacity(1);
-      }
-      if (floorplanLayersRef.current) {
-        (floorplanLayersRef.current as any).setOpacity(0);
+      // Show tiles, hide floorplan
+      const map = mapRef.current;
+      if (map) {
+        // Restore tile pane and add tiles back
+        map.getContainer().querySelector('.leaflet-tile-pane')?.removeAttribute('style');
+        if (streetLayersRef.current) {
+          map.addLayer(streetLayersRef.current);
+        }
+        // Hide floorplan
+        if (floorplanLayersRef.current) {
+          (floorplanLayersRef.current as any).setOpacity(0);
+        }
       }
     }
   }, [currentView]);
@@ -295,37 +277,59 @@ export default function OfficerMap({
     const map = mapRef.current;
     if (!map) return;
 
-    map.eachLayer((layer) => {
-      if ((layer as any)._isBroadcast) {
-        map.removeLayer(layer);
+    // Remove markers for incidents no longer in broadcastIncidents
+    broadcastMarkersRef.current.forEach((marker, id) => {
+      if (!broadcastIncidents.find((bi) => bi.id === id)) {
+        marker.remove();
+        broadcastMarkersRef.current.delete(id);
+        broadcastMarkerPositionsRef.current.delete(id);
       }
     });
 
     broadcastIncidents.forEach((bi) => {
-      const random = seededRandom(bi.id || bi.created_at);
-      const latOffset = (random() - 0.5) * 0.0006;
-      const lngOffset = (random() - 0.5) * 0.0006;
-      const latLng: [number, number] = [center[0] + latOffset, center[1] + lngOffset];
-
       const color = colorMap[bi.incident_type] || '#666666';
 
-      const marker = L.circleMarker(latLng, {
-        radius: 8,
-        fillColor: color,
-        fillOpacity: 0.3,
-        color: color,
-        weight: 1,
-        dashArray: '4 4',
-      }).addTo(map);
+      if (broadcastMarkersRef.current.has(bi.id)) {
+        // Update existing marker style only
+        const marker = broadcastMarkersRef.current.get(bi.id)!;
+        marker.setStyle({
+          fillColor: color,
+          fillOpacity: 0.3,
+          color: color,
+          weight: 1,
+          dashArray: '4 4',
+        });
+      } else {
+        // Create new marker with persisted position
+        let position = broadcastMarkerPositionsRef.current.get(bi.id);
+        if (!position) {
+          const random = seededRandom(bi.id || bi.created_at);
+          const latOffset = (random() - 0.5) * 0.0006;
+          const lngOffset = (random() - 0.5) * 0.0006;
+          position = [center[0] + latOffset, center[1] + lngOffset];
+          broadcastMarkerPositionsRef.current.set(bi.id, position);
+        }
 
-      (marker as any)._isBroadcast = true;
+        const marker = L.circleMarker(position as L.LatLngTuple, {
+          radius: 8,
+          fillColor: color,
+          fillOpacity: 0.3,
+          color: color,
+          weight: 1,
+          dashArray: '4 4',
+        }).addTo(map);
 
-      marker.bindPopup(
-        `<strong>[Broadcast]</strong> ${INCIDENT_TYPE_LABELS[bi.incident_type] || bi.incident_type}<br/>` +
-        (bi.description ? `<br/>${bi.description}` : '')
-      );
+        (marker as any)._isBroadcast = true;
+
+        marker.bindPopup(
+          `<strong>[Broadcast]</strong> ${INCIDENT_TYPE_LABELS[bi.incident_type] || bi.incident_type}<br/>` +
+          (bi.description ? `<br/>${bi.description}` : '')
+        );
+
+        broadcastMarkersRef.current.set(bi.id, marker);
+      }
     });
-  }, [broadcastIncidents, colorMap, center, seededRandom]);
+  }, [broadcastIncidents, colorMap, seededRandom]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
