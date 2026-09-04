@@ -55,10 +55,10 @@ export default function OfficerMap({
 
   // Placeholder floorplan buildings (ready to replace with real floorplan images)
   const floorplanBuildings = [
-    { id: 'main-building', name: 'Main Building', color: '#3B82F6', bounds: [[38.6273, -90.2425], [38.6271, -90.2415]], floors: [{ id: 'a1', name: 'Floor 1 - Lobby' }, { id: 'a2', name: 'Floor 2 - Offices' }, { id: 'a3', name: 'Floor 3 - Medical' }] },
-    { id: 'childrens-hospital', name: "Children's Hospital", color: '#22C55E', bounds: [[38.6265, -90.2420], [38.6260, -90.2410]], floors: [{ id: 'c1', name: 'Floor 1 - ER' }, { id: 'c2', name: 'Floor 2 - Inpatient' }, { id: 'c3', name: 'Floor 3 - ICN' }] },
-    { id: 'adult-ed', name: 'Adult ED', color: '#EF4444', bounds: [[38.6268, -90.2412], [38.6264, -90.2405]], floors: [{ id: 'd1', name: 'Floor 1 - Triage' }, { id: 'd2', name: 'Floor 2 - Consults' }] },
-    { id: 'parking-garage', name: 'Parking Garage', color: '#6B7280', bounds: [[38.6275, -90.2408], [38.6272, -90.2400]], floors: [{ id: 'g1', name: 'Level -1' }, { id: 'g2', name: 'Level -2' }] },
+    { id: 'main-building', name: 'Main Building', color: '#3B82F6', bounds: [[38.6300, -90.2460], [38.6250, -90.2380]], floors: [{ id: 'a1', name: 'Floor 1 - Lobby' }, { id: 'a2', name: 'Floor 2 - Offices' }, { id: 'a3', name: 'Floor 3 - Medical' }] },
+    { id: 'childrens-hospital', name: "Children's Hospital", color: '#22C55E', bounds: [[38.6300, -90.2460], [38.6250, -90.2380]], floors: [{ id: 'c1', name: 'Floor 1 - ER' }, { id: 'c2', name: 'Floor 2 - Inpatient' }, { id: 'c3', name: 'Floor 3 - ICN' }] },
+    { id: 'adult-ed', name: 'Adult ED', color: '#EF4444', bounds: [[38.6300, -90.2460], [38.6250, -90.2380]], floors: [{ id: 'd1', name: 'Floor 1 - Triage' }, { id: 'd2', name: 'Floor 2 - Consults' }] },
+    { id: 'parking-garage', name: 'Parking Garage', color: '#6B7280', bounds: [[38.6300, -90.2460], [38.6250, -90.2380]], floors: [{ id: 'g1', name: 'Level -1' }, { id: 'g2', name: 'Level -2' }] },
   ];
 
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
@@ -69,20 +69,26 @@ export default function OfficerMap({
     if (!map) return;
 
     if (currentView === 'floorplan') {
-      // Hide tiles via opacity only (same pattern as Kiosk)
-      if (streetLayersRef.current) {
-        (streetLayersRef.current as any).setOpacity(0);
-      }
-      // Create floorplan layerGroup once (on first floorplan toggle)
+      // Keep tiles underneath, create floorplan overlay on top
       if (!floorplanLayersRef.current) {
         const fg = L.layerGroup();
+        // Add a dark overlay rectangle covering the viewport
+        const overlayBounds = [
+          [38.60, -90.30],
+          [38.65, -90.20],
+        ] as L.LatLngBoundsLiteral;
+        L.rectangle(overlayBounds, {
+          color: 'transparent',
+          fillColor: '#0b1219',
+          fillOpacity: 0.92,
+          weight: 0,
+        }).addTo(fg);
         floorplanBuildings.forEach((building) => {
           const rectangle = L.rectangle(building.bounds as L.LatLngBoundsLiteral, {
-            color: '#ffffff',
+            color: building.color,
             fillColor: building.color,
-            fillOpacity: 0.6,
-            weight: 3,
-            dashArray: '6 4',
+            fillOpacity: 0.4,
+            weight: 2,
           }).addTo(fg);
           rectangle.on('click', () => {
             const isSelected = selectedBuildingId === building.id;
@@ -98,22 +104,6 @@ export default function OfficerMap({
               onFloorSelectRef.current?.(null);
             }
           });
-          if (building.floors && building.floors.length > 0) {
-            const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
-            building.floors.forEach(() => {
-              const center: L.LatLngTuple = [
-                (sw[0] + ne[0]) / 2,
-                (sw[1] + ne[1]) / 2,
-              ];
-              L.circleMarker(center, {
-                radius: 6,
-                fillColor: '#ffffff',
-                fillOpacity: 0.8,
-                color: building.color,
-                weight: 2,
-              }).addTo(fg);
-            });
-          }
           const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
           const center: L.LatLngTuple = [
             (sw[0] + ne[0]) / 2,
@@ -122,7 +112,7 @@ export default function OfficerMap({
           L.marker(center as L.LatLngExpression, {
             icon: L.divIcon({
               className: 'floorplan-label',
-              html: `<div style="color: ${building.color}; font-weight: 700; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif; text-shadow: 0 0 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6); text-align: center; white-space: nowrap; pointer-events: none;">${building.name}</div>`,
+              html: `<div style="color: ${building.color}; font-weight: 700; font-size: 14px; font-family: 'IBM Plex Sans', sans-serif; text-shadow: 0 0 8px rgba(0,0,0,0.9); text-align: center; pointer-events: none;">${building.name}</div>`,
               iconSize: [0, 0],
               iconAnchor: [0, 0],
             }),
@@ -132,14 +122,10 @@ export default function OfficerMap({
         fg.addTo(map);
         floorplanLayersRef.current = fg;
       }
-      (floorplanLayersRef.current as any).setOpacity(1);
     } else {
-      // Show tiles, hide floorplan
-      if (streetLayersRef.current) {
-        (streetLayersRef.current as any).setOpacity(1);
-      }
       if (floorplanLayersRef.current) {
-        (floorplanLayersRef.current as any).setOpacity(0);
+        map.removeLayer(floorplanLayersRef.current);
+        floorplanLayersRef.current = null;
       }
     }
   }, [currentView]);
