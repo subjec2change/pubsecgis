@@ -43,52 +43,49 @@ export default function OfficerMap({
   ];
 
   useEffect(() => {
-    // Clean up existing floorplan layers
-    if (floorplanLayersRef.current) {
-      const map = mapRef.current;
-      if (map) {
-        map.removeLayer(floorplanLayersRef.current);
-      }
-      floorplanLayersRef.current = null;
-    }
-
     if (currentView === 'floorplan') {
       const map = mapRef.current;
       if (map) {
-        // Create floorplan layer group
-        const fg = L.layerGroup();
-        floorplanBuildings.forEach((building) => {
-          const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
-          L.rectangle(building.bounds as L.LatLngBoundsLiteral, {
-            color: building.color,
-            fillColor: building.color,
-            fillOpacity: 0.25,
-            weight: 2,
-            dashArray: '5 5',
-          }).addTo(fg);
-          // Add building label
-          const center: L.LatLngTuple = [
-            (sw[0] + ne[0]) / 2,
-            (sw[1] + ne[1]) / 2,
-          ];
-          L.marker(center as L.LatLngExpression, {
-            icon: L.divIcon({
-              className: 'floorplan-label',
-              html: `<div style="color: ${building.color}; font-weight: 700; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif; text-shadow: 0 0 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6); text-align: center; white-space: nowrap; pointer-events: none;">${building.name}</div>`,
-              iconSize: [0, 0],
-              iconAnchor: [0, 0],
-            }),
-            interactive: false,
-          }).addTo(fg);
-        });
-        fg.addTo(map);
-        floorplanLayersRef.current = fg;
+        // Show floorplan overlay, hide tiles (no remove — just hide)
+        if (streetLayersRef.current) {
+          (streetLayersRef.current as any).setOpacity(0);
+        }
+        if (!floorplanLayersRef.current) {
+          const fg = L.layerGroup();
+          floorplanBuildings.forEach((building) => {
+            const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
+            L.rectangle(building.bounds as L.LatLngBoundsLiteral, {
+              color: building.color,
+              fillColor: building.color,
+              fillOpacity: 0.25,
+              weight: 2,
+              dashArray: '5 5',
+            }).addTo(fg);
+            const center: L.LatLngTuple = [
+              (sw[0] + ne[0]) / 2,
+              (sw[1] + ne[1]) / 2,
+            ];
+            L.marker(center as L.LatLngExpression, {
+              icon: L.divIcon({
+                className: 'floorplan-label',
+                html: `<div style="color: ${building.color}; font-weight: 700; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif; text-shadow: 0 0 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6); text-align: center; white-space: nowrap; pointer-events: none;">${building.name}</div>`,
+                iconSize: [0, 0],
+                iconAnchor: [0, 0],
+              }),
+              interactive: false,
+            }).addTo(fg);
+          });
+          fg.addTo(map);
+          floorplanLayersRef.current = fg;
+        }
       }
     } else {
-      // Street map mode - remove floorplan, ensure tile layer is visible
-      const map = mapRef.current;
-      if (map && streetLayersRef.current) {
-        map.addLayer(streetLayersRef.current);
+      // Street map mode - show tiles, hide floorplan
+      if (streetLayersRef.current) {
+        (streetLayersRef.current as any).setOpacity(1);
+      }
+      if (floorplanLayersRef.current) {
+        (floorplanLayersRef.current as any).setOpacity(0);
       }
     }
   }, [currentView]);
