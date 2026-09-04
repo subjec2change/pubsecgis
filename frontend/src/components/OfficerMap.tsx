@@ -131,7 +131,15 @@ export default function OfficerMap({
       map.remove();
       mapRef.current = null;
     };
-  }, [center, zoom, onMapClick]);
+  }, [onMapClick]);
+
+  // Update center/zoom without recreating the map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map) {
+      map.setView(center, zoom, { animate: true, duration: 0.5 });
+    }
+  }, [center, zoom]);
 
   useEffect(() => {
     const map = mapRef.current;
