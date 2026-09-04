@@ -43,6 +43,27 @@ export default function BroadcastPage() {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [isHovering, setIsHovering] = useState(false);
 
+  // Sort incidents BEFORE any useEffect that references them
+  const statusPriority: Record<string, number> = {
+    open: 0,
+    escalating: 1,
+    monitoring: 2,
+    resolved: 3,
+    archived: 4,
+  };
+  const displayIncidents = incidents.filter((i) => i.status !== 'archived');
+  const sortedIncidents = [...displayIncidents].sort((a, b) => {
+    const priorityA = statusPriority[a.status || 'resolved'] ?? 3;
+    const priorityB = statusPriority[b.status || 'resolved'] ?? 3;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+  const activeIncidents = displayIncidents.filter((i) => i.status !== 'resolved');
+  const byType: Record<string, number> = {};
+  activeIncidents.forEach((i) => {
+    byType[i.incident_type] = (byType[i.incident_type] || 0) + 1;
+  });
+
   const getShiftInfo = useCallback(() => {
     const hour = new Date().getHours() + new Date().getMinutes() / 60;
     if (hour < 6.5 || hour >= 22.5) return { name: 'Night Shift', icon: '🌙' };
@@ -50,23 +71,7 @@ export default function BroadcastPage() {
     return { name: 'Evening Shift', icon: '🌇' };
   }, []);
 
-  // Initial shift detection
-  useEffect(() => {
-    const info = getShiftInfo();
-    setCurrentShift(info.name);
-    setShiftIcon(info.icon);
-  }, [getShiftInfo]);
-
-  // Auto-update shift every minute
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const info = getShiftInfo();
-      setCurrentShift(info.name);
-      setShiftIcon(info.icon);
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [getShiftInfo]);
-
+  // Auto-refresh
   const loadBroadcast = useCallback(async () => {
     try {
       setLoading(true);
@@ -95,49 +100,36 @@ export default function BroadcastPage() {
         });
       }
     };
-    // Try immediately
     enterFullscreen();
-    // Try again after a short delay (some browsers need it)
     setTimeout(enterFullscreen, 500);
   }, []);
 
-  // Prevent browser navigation keys (F11, Alt+Tab, Escape, etc.)
+  // Prevent browser navigation keys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Block F11 (fullscreen toggle)
       if (e.key === 'F11' || e.keyCode === 122) {
         e.preventDefault();
         return false;
       }
-      // Block Alt+Tab, Alt+F4, Ctrl+Shift+Q (Chrome quit), Escape
-      if (
-        (e.altKey && (e.key === 'Tab' || e.key === 'F4')) ||
-        (e.ctrlKey && e.shiftKey && e.key === 'Q') ||
-        e.key === 'Escape'
-      ) {
+      if ((e.altKey && (e.key === 'Tab' || e.key === 'F4')) ||
+          (e.ctrlKey && e.shiftKey && e.key === 'Q') ||
+          e.key === 'Escape') {
         e.preventDefault();
         return false;
       }
-      // Block browser shortcuts
-      if (
-        (e.ctrlKey && (e.key === 'r' || e.key === 't' || e.key === 'w')) ||
-        (e.metaKey && (e.key === 'r' || e.key === 't' || e.key === 'w'))
-      ) {
+      if ((e.ctrlKey && (e.key === 'r' || e.key === 't' || e.key === 'w')) ||
+          (e.metaKey && (e.key === 'r' || e.key === 't' || e.key === 'w'))) {
         e.preventDefault();
         return false;
       }
     };
-
-    // Block right-click context menu
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       return false;
     };
-
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('contextmenu', handleContextMenu);
 
-    // Try to hide cursor after 3 seconds of inactivity (kiosk mode)
     let cursorTimeout: ReturnType<typeof setTimeout>;
     const hideCursor = () => {
       document.body.style.cursor = 'none';
@@ -146,10 +138,7 @@ export default function BroadcastPage() {
         document.body.style.cursor = 'default';
       }, 3000);
     };
-
-    // Show cursor on movement
     document.addEventListener('mousemove', hideCursor);
-    // Start hiding after 1 second
     setTimeout(hideCursor, 1000);
 
     return () => {
@@ -160,6 +149,22 @@ export default function BroadcastPage() {
     };
   }, []);
 
+  // Shift detection
+  useEffect(() => {
+    const info = getShiftInfo();
+    setCurrentShift(info.name);
+    setShiftIcon(info.icon);
+  }, [getShiftInfo]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const info = getShiftInfo();
+      setCurrentShift(info.name);
+      setShiftIcon(info.icon);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [getShiftInfo]);
+
   // Initial load
   useEffect(() => {
     loadBroadcast();
@@ -167,91 +172,50 @@ export default function BroadcastPage() {
 
   // Live clock
   useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Countdown
+  useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(new Date());
+      setCountdown((prev) => prev <= 1 ? REFRESH_INTERVAL / 1000 : prev - 1);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Countdown to next refresh
+  // Auto-refresh incidents
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) return REFRESH_INTERVAL / 1000;
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Auto-refresh
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadBroadcast();
-    }, REFRESH_INTERVAL);
+    const interval = setInterval(() => loadBroadcast(), REFRESH_INTERVAL);
     return () => clearInterval(interval);
   }, [loadBroadcast]);
 
-  // Auto-scroll sidebar
+  // Auto-scroll sidebar (pauses on hover)
   useEffect(() => {
     if (!sidebarRef.current || sortedIncidents.length === 0) return;
     const sidebar = sidebarRef.current;
-    let scrollSpeed = 0.5; // pixels per tick
     let animationFrame: number;
-    
+
     const scroll = () => {
       if (isHovering || !sidebarRef.current) {
         animationFrame = requestAnimationFrame(scroll);
         return;
       }
-      sidebar.scrollTop += scrollSpeed;
-      // If we hit the bottom, scroll back to top
+      sidebar.scrollTop += 0.5;
       if (sidebar.scrollTop >= sidebar.scrollHeight - sidebar.clientHeight - 2) {
         sidebar.scrollTo(0, 0);
       }
       animationFrame = requestAnimationFrame(scroll);
     };
-    
+
     animationFrame = requestAnimationFrame(scroll);
     return () => cancelAnimationFrame(animationFrame);
   }, [sortedIncidents.length, isHovering]);
 
-  const screenTitle = SCREEN_TITLES[screenId] || 'Broadcast Screen';
-
-  // Build color lookup from config or default
   const colorMap: Record<string, string> = {};
-  colorConfig.forEach((cm) => {
-    colorMap[cm.incident_type] = cm.color;
-  });
+  colorConfig.forEach((cm) => { colorMap[cm.incident_type] = cm.color; });
 
-  // Sort by urgency, then by recency
-  // Priority: open (0) > escalating (1) > monitoring (2) > resolved (3) > archived (4)
-  const statusPriority: Record<string, number> = {
-    open: 0,
-    escalating: 1,
-    monitoring: 2,
-    resolved: 3,
-    archived: 4,
-  };
-
-  // Exclude archived from active display
-  const displayIncidents = incidents.filter((i) => i.status !== 'archived');
-
-  const sortedIncidents = [...displayIncidents].sort((a, b) => {
-    const priorityA = statusPriority[a.status || 'resolved'] ?? 3;
-    const priorityB = statusPriority[b.status || 'resolved'] ?? 3;
-    if (priorityA !== priorityB) return priorityA - priorityB;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
-
-  // Group by type for summary (exclude resolved and archived from active counts)
-  const activeIncidents = displayIncidents.filter((i) => i.status !== 'resolved');
-  const byType: Record<string, number> = {};
-  activeIncidents.forEach((i) => {
-    byType[i.incident_type] = (byType[i.incident_type] || 0) + 1;
-  });
-
-  // Status counts (active only)
+  const screenTitle = SCREEN_TITLES[screenId] || 'Broadcast Screen';
   const openCount = activeIncidents.filter((i) => i.status === 'open').length;
 
   return (
@@ -275,9 +239,7 @@ export default function BroadcastPage() {
             {shiftIcon} {currentShift}
           </div>
           <div className="header-time">{currentTime.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-          <div className="refresh-timer">
-            Refresh: {countdown}s
-          </div>
+          <div className="refresh-timer">Refresh: {countdown}s</div>
           <div className="last-updated">
             Updated: {lastUpdated.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
           </div>
@@ -320,7 +282,7 @@ export default function BroadcastPage() {
         </div>
 
         {/* Incident sidebar — right side, scrollable with auto-scroll */}
-        <div 
+        <div
           className="broadcast-sidebar"
           ref={sidebarRef}
           onMouseEnter={() => setIsHovering(true)}
@@ -343,34 +305,34 @@ export default function BroadcastPage() {
                 key={incident.id}
                 className={`broadcast-incident-card status-${incident.status} ${incident.status === 'resolved' ? 'incident-resolved' : ''}`}
                 style={{ ['--card-color' as string]: colorMap[incident.incident_type] || DEFAULT_COLOR_MAP[incident.incident_type] || '#666' }}
-                >
-                  <div className="card-header">
-                    <div className="incident-type">
-                      <span className="type-dot"></span>
-                      <span className="type-label">
-                        {INCIDENT_TYPE_LABELS[incident.incident_type as keyof typeof INCIDENT_TYPE_LABELS] || incident.incident_type}
-                      </span>
-                    </div>
-                    <span className={`status-badge status-${incident.status}`}>{incident.status}</span>
+              >
+                <div className="card-header">
+                  <div className="incident-type">
+                    <span className="type-dot"></span>
+                    <span className="type-label">
+                      {INCIDENT_TYPE_LABELS[incident.incident_type as keyof typeof INCIDENT_TYPE_LABELS] || incident.incident_type}
+                    </span>
                   </div>
-                  <div className="card-body">
-                    <div className="location">📍 {incident.location_ref}</div>
-                    {incident.response_phase && (
-                      <div className="response-phase">
-                        {RESPONSE_PHASE_LABELS[incident.response_phase] || incident.response_phase}
-                      </div>
-                    )}
-                    <div className="timestamp">
-                      {new Date(incident.created_at).toLocaleString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        hour12: false,
-                      })}
+                  <span className={`status-badge status-${incident.status}`}>{incident.status}</span>
+                </div>
+                <div className="card-body">
+                  <div className="location">📍 {incident.location_ref}</div>
+                  {incident.response_phase && (
+                    <div className="response-phase">
+                      {RESPONSE_PHASE_LABELS[incident.response_phase] || incident.response_phase}
                     </div>
+                  )}
+                  <div className="timestamp">
+                    {new Date(incident.created_at).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: false,
+                    })}
                   </div>
                 </div>
+              </div>
             ))
           )}
         </div>
