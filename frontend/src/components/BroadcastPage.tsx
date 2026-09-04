@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { getBroadcastIncidents, getColorConfig } from '../api/endpoints';
 import { INCIDENT_TYPE_LABELS, DEFAULT_COLOR_MAP } from '../types';
 import type { BroadcastIncident, ColorMapping } from '../types';
+import OfficerMap from './OfficerMap';
 
 const RESPONSE_PHASE_LABELS: Record<string, string> = {
   en_route: 'Officer en route',
@@ -281,22 +282,32 @@ export default function BroadcastPage() {
         ))}
       </div>
 
-      {/* Incident List */}
+      {/* Map + Incident Sidebar */}
       <div className="broadcast-content">
-        {loading ? (
-          <div className="loading-state">
-            <span className="spinner"></span>
-            <span>LOADING DATA...</span>
-          </div>
-        ) : sortedIncidents.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">✓</div>
-            <span>NO ACTIVE INCIDENTS</span>
-            <div className="empty-sub">All clear — system nominal</div>
-          </div>
-        ) : (
-          <div className="incident-grid">
-            {sortedIncidents.map((incident) => (
+        {/* Map — takes most of the screen */}
+        <div className="broadcast-map">
+          <OfficerMap
+            incidents={incidents as any}
+            broadcastIncidents={incidents}
+            colorConfig={colorConfig}
+          />
+        </div>
+
+        {/* Incident sidebar — right side, scrollable */}
+        <div className="broadcast-sidebar">
+          {loading ? (
+            <div className="loading-state">
+              <span className="spinner"></span>
+              <span>LOADING DATA...</span>
+            </div>
+          ) : sortedIncidents.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">✓</div>
+              <span>NO ACTIVE INCIDENTS</span>
+              <div className="empty-sub">All clear — system nominal</div>
+            </div>
+          ) : (
+            sortedIncidents.map((incident) => (
               <div
                 key={incident.id}
                 className={`broadcast-incident-card status-${incident.status} ${incident.status === 'resolved' ? 'incident-resolved' : ''}`}
@@ -332,9 +343,9 @@ export default function BroadcastPage() {
                     </div>
                   </div>
                 </div>
-              ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
