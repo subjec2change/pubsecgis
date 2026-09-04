@@ -38,6 +38,9 @@ export default function OfficerMap({
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map());
   const floorplanLayersRef = useRef<L.LayerGroup | null>(null);
   const streetLayersRef = useRef<L.Layer | null>(null);
+  // Fix map pulsing: store marker positions persistently so they don't reposition on every render
+  const markerPositionsRef = useRef<Map<string, [number, number]>>(new Map());
+  const broadcastMarkerPositionsRef = useRef<Map<string, [number, number]>>(new Map());
 
   // Placeholder floorplan buildings (ready to replace with real floorplan images)
   const floorplanBuildings = [
@@ -50,6 +53,7 @@ export default function OfficerMap({
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
   const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
 
+  // Fix floorplan toggle: always ensure floorplan is visible and map shows the buildings
   useEffect(() => {
     if (currentView === 'floorplan') {
       const map = mapRef.current;
@@ -58,6 +62,7 @@ export default function OfficerMap({
         if (streetLayersRef.current) {
           (streetLayersRef.current as any).setOpacity(0);
         }
+        // Always ensure floorplan layer exists and is visible
         if (!floorplanLayersRef.current) {
           const fg = L.layerGroup();
           floorplanBuildings.forEach((building) => {
@@ -130,6 +135,19 @@ export default function OfficerMap({
           fg.addTo(map);
           floorplanLayersRef.current = fg;
         }
+        // CRITICAL: Ensure floorplan layer is visible (toggle opacity on/off each view switch)
+        (floorplanLayersRef.current as any).setOpacity(1);
+        // Fit map to all buildings so user can see them
+        const sw: L.LatLngTuple = [90, -180]; // max southwest
+        const ne: L.LatLngTuple = [-90, 180]; // max northeast
+        floorplanBuildings.forEach((b) => {
+          const [min, max] = b.bounds as [L.LatLngTuple, L.LatLngTuple];
+          if (min[0] < sw[0]) sw[0] = min[0];
+          if (min[1] < sw[1]) sw[1] = min[1];
+          if (max[0] > ne[0]) ne[0] = max[0];
+          if (max[1] > ne[1]) ne[1] = max[1];
+        });
+        map.fitBounds([sw, ne] as L.LatLngBoundsLiteral, { padding: [50, 50], maxZoom: 17 });
       }
     } else {
       // Street map mode - show tiles, hide floorplan
@@ -185,13 +203,27 @@ export default function OfficerMap({
     };
   }, [onMapClick]);
 
+  // CRITICAL: Only update view when center/zoom actually change (not on every render)
+  const prevCenterRef = useRef<[number, number]>([38.6270, -90.2418]);
+  const prevZoomRef = useRef<number>(17);
+
   // Update center/zoom without recreating the map
   useEffect(() => {
     const map = mapRef.current;
     if (map) {
-      map.setView(center, zoom, { animate: true, duration: 0.5 });
+      // Only update if values actually changed (not just reference)
+      if (prevCenterRef.current[0] !== center[0] ||
+          prevCenterRef.current[1] !== center[1] ||
+          prevZoomRef.current !== zoom) {
+        map.setView(center, zoom, { animate: true, duration: 0.5 });
+        prevCenterRef.current = center;
+        prevZoomRef.current = zoom;
+      }
     }
   }, [center, zoom]);
+
+  // Fix map pulsing: don't reposition markers on every render, only on incident changes
+  const markersInitializedRef = useRef(false);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -219,6 +251,7 @@ export default function OfficerMap({
           radius: isSelected ? 18 : 12,
         });
       } else {
+        // Only position new markers, never reposition existing ones
         const random = seededRandom(incident.id);
         const latOffset = (random() - 0.5) * 0.0008;
         const lngOffset = (random() - 0.5) * 0.0008;
@@ -251,7 +284,12 @@ export default function OfficerMap({
         markersRef.current.set(incident.id, marker);
       }
     });
-  }, [incidents, colorMap, selectedIncidentId, center, seededRandom, onIncidentClick]);
+
+    // Mark markers as initialized after first render
+    if (incidents.length > 0) {
+      markersInitializedRef.current = true;
+    }
+  }, [incidents, colorMap, selectedIncidentId, seededRandom, onIncidentClick]);
 
   useEffect(() => {
     const map = mapRef.current;
