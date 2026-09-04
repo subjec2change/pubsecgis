@@ -1,0 +1,52 @@
+#
+# Systemd service for PUSECGIS Kiosk Screen
+#
+# Usage:
+#   sudo cp pusecgis-kiosk.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable pusecgis-kiosk@main.service
+#   sudo systemctl start pusecgis-kiosk@main.service
+#
+# Screens: main, satellite1, satellite2, satellite3, childrens, adulted
+#
+
+[Unit]
+Description=PUSECGIS Kiosk Screen - %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+Group=%i
+
+# Environment
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/%i/.Xauthority
+Environment=BROWSER=google-chrome
+Environment=KIOSK_LOG_DIR=/var/log/pusecgis-kiosk
+
+# Launch kiosk with the appropriate screen
+ExecStart=/home/%i/PUBSECGIS/scripts/kiosk-launch.sh \
+  http://localhost:5173/broadcast?screen=%i \
+  %i
+
+# Auto-restart on crash
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pusecgis-kiosk-%i
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -82,6 +82,81 @@ export default function BroadcastPage() {
     }
   }, []);
 
+  // Auto-enter fullscreen on mount (kiosk mode)
+  useEffect(() => {
+    const enterFullscreen = () => {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch((e) => {
+          console.warn('Fullscreen denied:', e);
+        });
+      }
+    };
+    // Try immediately
+    enterFullscreen();
+    // Try again after a short delay (some browsers need it)
+    setTimeout(enterFullscreen, 500);
+  }, []);
+
+  // Prevent browser navigation keys (F11, Alt+Tab, Escape, etc.)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Block F11 (fullscreen toggle)
+      if (e.key === 'F11' || e.keyCode === 122) {
+        e.preventDefault();
+        return false;
+      }
+      // Block Alt+Tab, Alt+F4, Ctrl+Shift+Q (Chrome quit), Escape
+      if (
+        (e.altKey && (e.key === 'Tab' || e.key === 'F4')) ||
+        (e.ctrlKey && e.shiftKey && e.key === 'Q') ||
+        e.key === 'Escape'
+      ) {
+        e.preventDefault();
+        return false;
+      }
+      // Block browser shortcuts
+      if (
+        (e.ctrlKey && (e.key === 'r' || e.key === 't' || e.key === 'w')) ||
+        (e.metaKey && (e.key === 'r' || e.key === 't' || e.key === 'w'))
+      ) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Block right-click context menu
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      return false;
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    // Try to hide cursor after 3 seconds of inactivity (kiosk mode)
+    let cursorTimeout: ReturnType<typeof setTimeout>;
+    const hideCursor = () => {
+      document.body.style.cursor = 'none';
+      clearTimeout(cursorTimeout);
+      cursorTimeout = setTimeout(() => {
+        document.body.style.cursor = 'default';
+      }, 3000);
+    };
+
+    // Show cursor on movement
+    document.addEventListener('mousemove', hideCursor);
+    // Start hiding after 1 second
+    setTimeout(hideCursor, 1000);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('mousemove', hideCursor);
+      clearTimeout(cursorTimeout);
+    };
+  }, []);
+
   // Initial load
   useEffect(() => {
     loadBroadcast();
