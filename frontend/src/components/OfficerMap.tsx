@@ -65,103 +65,88 @@ export default function OfficerMap({
   const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log(`[FloorplanToggle] effect fired, currentView=${currentView}`);
+    const map = mapRef.current;
+    if (!map) return;
+
     if (currentView === 'floorplan') {
-      const map = mapRef.current;
-      if (map) {
-        // Hide street map tiles — remove layer, hide opacity, and hide tile pane div
-        console.log(`[FloorplanToggle] Hiding tiles, panning to building area`);
-        if (streetLayersRef.current) {
-          (streetLayersRef.current as any).setOpacity(0);
-          map.removeLayer(streetLayersRef.current);
-        }
-        // Also hide the tile pane div directly
-        const tilePane = map.getContainer().querySelector('.leaflet-tile-pane');
-        if (tilePane) {
-          (tilePane as HTMLElement).style.display = 'none';
-        }
-        // Pan/zoom to the building area so rectangles are clearly visible
-        map.setView([38.6268, -90.2418], 18, { animate: false });
-        // Always ensure floorplan layer exists and is visible
-        if (!floorplanLayersRef.current) {
-          const fg = L.layerGroup();
-          floorplanBuildings.forEach((building) => {
-            const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
-            const rectangle = L.rectangle(building.bounds as L.LatLngBoundsLiteral, {
-              color: '#ffffff',
-              fillColor: building.color,
-              fillOpacity: 0.5,
-              weight: 2,
-              dashArray: '5 5',
-            }).addTo(fg);
-            rectangle.on('click', () => {
-              const isSelected = selectedBuildingId === building.id;
-              if (isSelected) {
-                setSelectedBuildingId(null);
-                setSelectedFloorId(null);
-                onBuildingSelect?.(null);
-                onFloorSelect?.(null);
-              } else {
-                setSelectedBuildingId(building.id);
-                setSelectedFloorId(null);
-                onBuildingSelect?.(building.id, building.name);
-                onFloorSelect?.(null);
-              }
-            });
-            if (building.floors && building.floors.length > 0) {
-              building.floors.forEach((floor) => {
-                const center: L.LatLngTuple = [
-                  (sw[0] + ne[0]) / 2,
-                  (sw[1] + ne[1]) / 2,
-                ];
-                const floorMarker = L.circleMarker(center, {
-                  radius: 6,
-                  fillColor: '#ffffff',
-                  fillOpacity: 0.8,
-                  color: building.color,
-                  weight: 2,
-                }).addTo(fg);
-                floorMarker.bindPopup(`<strong>${floor.name}</strong>`);
-              });
-            }
-            const center: L.LatLngTuple = [
-              (sw[0] + ne[0]) / 2,
-              (sw[1] + ne[1]) / 2,
-            ];
-            L.marker(center as L.LatLngExpression, {
-              icon: L.divIcon({
-                className: 'floorplan-label',
-                html: `<div style="color: ${building.color}; font-weight: 700; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif; text-shadow: 0 0 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6); text-align: center; white-space: nowrap; pointer-events: none;">${building.name}</div>`,
-                iconSize: [0, 0],
-                iconAnchor: [0, 0],
-              }),
-              interactive: false,
-            }).addTo(fg);
-          });
-          fg.addTo(map);
-          (fg as any).bringToFront();
-          floorplanLayersRef.current = fg;
-        }
-        (floorplanLayersRef.current as any).setOpacity(1);
-        (floorplanLayersRef.current as any).bringToFront();
+      // Hide tiles via opacity, keep floorplan layerGroup visible
+      if (streetLayersRef.current) {
+        (streetLayersRef.current as any).setOpacity(0);
       }
+      // Always ensure floorplan layer exists and is visible
+      if (!floorplanLayersRef.current) {
+        const fg = L.layerGroup();
+        const allBounds: L.LatLngTuple[] = [];
+        floorplanBuildings.forEach((building) => {
+          const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
+          allBounds.push(sw, ne);
+          const rectangle = L.rectangle(building.bounds as L.LatLngBoundsLiteral, {
+            color: '#ffffff',
+            fillColor: building.color,
+            fillOpacity: 0.6,
+            weight: 3,
+            dashArray: '6 4',
+          }).addTo(fg);
+          rectangle.on('click', () => {
+            const isSelected = selectedBuildingId === building.id;
+            if (isSelected) {
+              setSelectedBuildingId(null);
+              setSelectedFloorId(null);
+              onBuildingSelectRef.current?.(null);
+              onFloorSelectRef.current?.(null);
+            } else {
+              setSelectedBuildingId(building.id);
+              setSelectedFloorId(null);
+              onBuildingSelectRef.current?.(building.id, building.name);
+              onFloorSelectRef.current?.(null);
+            }
+          });
+          if (building.floors && building.floors.length > 0) {
+            building.floors.forEach((floor) => {
+              const center: L.LatLngTuple = [
+                (sw[0] + ne[0]) / 2,
+                (sw[1] + ne[1]) / 2,
+              ];
+              const floorMarker = L.circleMarker(center, {
+                radius: 6,
+                fillColor: '#ffffff',
+                fillOpacity: 0.8,
+                color: building.color,
+                weight: 2,
+              }).addTo(fg);
+              floorMarker.bindPopup(`<strong>${floor.name}</strong>`);
+            });
+          }
+          const center: L.LatLngTuple = [
+            (sw[0] + ne[0]) / 2,
+            (sw[1] + ne[1]) / 2,
+          ];
+          L.marker(center as L.LatLngExpression, {
+            icon: L.divIcon({
+              className: 'floorplan-label',
+              html: `<div style="color: ${building.color}; font-weight: 700; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif; text-shadow: 0 0 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6); text-align: center; white-space: nowrap; pointer-events: none;">${building.name}</div>`,
+              iconSize: [0, 0],
+              iconAnchor: [0, 0],
+            }),
+            interactive: false,
+          }).addTo(fg);
+        });
+        fg.addTo(map);
+        floorplanLayersRef.current = fg;
+      }
+      // Zoom to fit all buildings
+      const bounds = floorplanBuildings.flatMap((b) => b.bounds as [L.LatLngTuple, L.LatLngTuple]);
+      if (bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+      }
+      (floorplanLayersRef.current as any).setOpacity(1);
     } else {
       // Show tiles, hide floorplan
-      const map = mapRef.current;
-      if (map) {
-        // Restore tile pane visibility
-        const tilePane = map.getContainer().querySelector('.leaflet-tile-pane');
-        if (tilePane) {
-          (tilePane as HTMLElement).style.display = '';
-        }
-        if (streetLayersRef.current) {
-          (streetLayersRef.current as any).setOpacity(1);
-          map.addLayer(streetLayersRef.current);
-        }
-        // Hide floorplan
-        if (floorplanLayersRef.current) {
-          (floorplanLayersRef.current as any).setOpacity(0);
-        }
+      if (streetLayersRef.current) {
+        (streetLayersRef.current as any).setOpacity(1);
+      }
+      if (floorplanLayersRef.current) {
+        (floorplanLayersRef.current as any).setOpacity(0);
       }
     }
   }, [currentView]);
