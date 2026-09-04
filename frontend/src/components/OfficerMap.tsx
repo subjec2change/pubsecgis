@@ -13,6 +13,8 @@ interface OfficerMapProps {
   selectedIncidentId?: string | null;
   center?: [number, number];
   zoom?: number;
+  currentView?: 'streetmap' | 'floorplan';
+  onMapReady?: (map: L.Map) => void;
 }
 
 export default function OfficerMap({
@@ -24,10 +26,72 @@ export default function OfficerMap({
   selectedIncidentId,
   center = [38.6270, -90.2418],
   zoom = 17,
+  currentView = 'streetmap',
 }: OfficerMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map());
+  const floorplanLayersRef = useRef<L.LayerGroup | null>(null);
+  const streetLayersRef = useRef<L.Layer | null>(null);
+
+  // Placeholder floorplan buildings (ready to replace with real floorplan images)
+  const floorplanBuildings = [
+    { name: 'Main Building', color: '#3B82F6', bounds: [[38.6273, -90.2425], [38.6271, -90.2415]] },
+    { name: 'Children\'s Hospital', color: '#22C55E', bounds: [[38.6265, -90.2420], [38.6260, -90.2410]] },
+    { name: 'Adult ED', color: '#EF4444', bounds: [[38.6268, -90.2412], [38.6264, -90.2405]] },
+    { name: 'Parking Garage', color: '#6B7280', bounds: [[38.6275, -90.2408], [38.6272, -90.2400]] },
+  ];
+
+  useEffect(() => {
+    // Clean up existing floorplan layers
+    if (floorplanLayersRef.current) {
+      const map = mapRef.current;
+      if (map) {
+        map.removeLayer(floorplanLayersRef.current);
+      }
+      floorplanLayersRef.current = null;
+    }
+
+    if (currentView === 'floorplan') {
+      const map = mapRef.current;
+      if (map) {
+        // Create floorplan layer group
+        const fg = L.layerGroup();
+        floorplanBuildings.forEach((building) => {
+          const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
+          L.rectangle(building.bounds as L.LatLngBoundsLiteral, {
+            color: building.color,
+            fillColor: building.color,
+            fillOpacity: 0.25,
+            weight: 2,
+            dashArray: '5 5',
+          }).addTo(fg);
+          // Add building label
+          const center: L.LatLngTuple = [
+            (sw[0] + ne[0]) / 2,
+            (sw[1] + ne[1]) / 2,
+          ];
+          L.marker(center as L.LatLngExpression, {
+            icon: L.divIcon({
+              className: 'floorplan-label',
+              html: `<div style="color: ${building.color}; font-weight: 700; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif; text-shadow: 0 0 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6); text-align: center; white-space: nowrap; pointer-events: none;">${building.name}</div>`,
+              iconSize: [0, 0],
+              iconAnchor: [0, 0],
+            }),
+            interactive: false,
+          }).addTo(fg);
+        });
+        fg.addTo(map);
+        floorplanLayersRef.current = fg;
+      }
+    } else {
+      // Street map mode - remove floorplan, ensure tile layer is visible
+      const map = mapRef.current;
+      if (map && streetLayersRef.current) {
+        map.addLayer(streetLayersRef.current);
+      }
+    }
+  }, [currentView]);
 
   const colorMap = useMemo(() => {
     const map: Record<string, string> = { ...DEFAULT_COLOR_MAP };
@@ -52,10 +116,11 @@ export default function OfficerMap({
     if (!containerRef.current || mapRef.current) return;
 
     const map = L.map(containerRef.current).setView(center, zoom);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
     }).addTo(map);
+    streetLayersRef.current = tileLayer;
     mapRef.current = map;
 
     map.on('click', (e: L.LeafletMouseEvent) => {

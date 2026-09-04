@@ -43,6 +43,10 @@ export default function BroadcastPage() {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [isHovering, setIsHovering] = useState(false);
 
+  // Floorplan rotation state
+  const [currentMapView, setCurrentMapView] = useState<'streetmap' | 'floorplan'>('streetmap');
+  const MAP_ROTATION_INTERVAL = 30000; // 30 seconds per view
+
   // Sort incidents BEFORE any useEffect that references them
   const statusPriority: Record<string, number> = {
     open: 0,
@@ -190,27 +194,61 @@ export default function BroadcastPage() {
     return () => clearInterval(interval);
   }, [loadBroadcast]);
 
-  // Auto-scroll sidebar (pauses on hover)
+  // Auto-scroll sidebar (pauses on hover, slows at boundaries)
   useEffect(() => {
     if (!sidebarRef.current || sortedIncidents.length === 0) return;
     const sidebar = sidebarRef.current;
+    let scrollSpeed = 0.4; // 20% slower: 0.4px/tick (was 0.5)
     let animationFrame: number;
+    let pauseUntil = 0; // timestamp when we can resume scrolling
+    let pauseAtBoundary = false; // whether we just hit a boundary
 
-    const scroll = () => {
+    const scroll = (now: number) => {
       if (isHovering || !sidebarRef.current) {
         animationFrame = requestAnimationFrame(scroll);
         return;
       }
-      sidebar.scrollTop += 0.5;
-      if (sidebar.scrollTop >= sidebar.scrollHeight - sidebar.clientHeight - 2) {
-        sidebar.scrollTo(0, 0);
+
+      // If paused at boundary, wait until pauseUntil
+      if (pauseAtBoundary && now < pauseUntil) {
+        animationFrame = requestAnimationFrame(scroll);
+        return;
       }
+
+      sidebar.scrollTop += scrollSpeed;
+
+      // At top boundary: pause 2s, then scroll down
+      if (sidebar.scrollTop <= 0) {
+        sidebar.scrollTop = 0;
+        pauseAtBoundary = true;
+        pauseUntil = now + 2000;
+        animationFrame = requestAnimationFrame(scroll);
+        return;
+      }
+
+      // At bottom boundary: pause 2s, then restart at top
+      if (sidebar.scrollTop >= sidebar.scrollHeight - sidebar.clientHeight - 2) {
+        pauseAtBoundary = true;
+        pauseUntil = now + 2000;
+        animationFrame = requestAnimationFrame(scroll);
+        return;
+      }
+
+      pauseAtBoundary = false;
       animationFrame = requestAnimationFrame(scroll);
     };
 
     animationFrame = requestAnimationFrame(scroll);
     return () => cancelAnimationFrame(animationFrame);
   }, [sortedIncidents.length, isHovering]);
+
+  // Floorplan rotation — cycle every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentMapView((prev) => (prev === 'streetmap' ? 'floorplan' : 'streetmap'));
+    }, MAP_ROTATION_INTERVAL);
+    return () => clearInterval(interval);
+  }, []);
 
   const colorMap: Record<string, string> = {};
   colorConfig.forEach((cm) => { colorMap[cm.incident_type] = cm.color; });
@@ -278,7 +316,12 @@ export default function BroadcastPage() {
             incidents={incidents as any}
             broadcastIncidents={incidents}
             colorConfig={colorConfig}
+            currentView={currentMapView}
           />
+          {/* Map view indicator */}
+          <div className="map-view-indicator">
+            {currentMapView === 'streetmap' ? '🗺️ STREET MAP' : '🏢 FLOORPLAN'}
+          </div>
         </div>
 
         {/* Incident sidebar — right side, scrollable with auto-scroll */}
