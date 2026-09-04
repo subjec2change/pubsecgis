@@ -57,13 +57,18 @@ export default function OfficerMap({
     if (currentView === 'floorplan') {
       const map = mapRef.current;
       if (map) {
-        // Hide street map tiles — remove layer AND hide the tile pane div
+        // Hide street map tiles — remove layer, hide opacity, and hide tile pane div
         if (streetLayersRef.current) {
+          (streetLayersRef.current as any).setOpacity(0);
           map.removeLayer(streetLayersRef.current);
-          map.getContainer().querySelector('.leaflet-tile-pane')?.setAttribute('style', 'display:none');
+        }
+        // Also hide the tile pane div directly
+        const tilePane = map.getContainer().querySelector('.leaflet-tile-pane');
+        if (tilePane) {
+          (tilePane as HTMLElement).style.display = 'none';
         }
         // Pan/zoom to the building area so rectangles are clearly visible
-        map.setView([38.6268, -90.2418], 18, { animate: true, duration: 0.3 });
+        map.setView([38.6268, -90.2418], 18, { animate: false });
         // Always ensure floorplan layer exists and is visible
         if (!floorplanLayersRef.current) {
           const fg = L.layerGroup();
@@ -121,17 +126,23 @@ export default function OfficerMap({
             }).addTo(fg);
           });
           fg.addTo(map);
+          (fg as any).bringToFront();
           floorplanLayersRef.current = fg;
         }
         (floorplanLayersRef.current as any).setOpacity(1);
+        (floorplanLayersRef.current as any).bringToFront();
       }
     } else {
       // Show tiles, hide floorplan
       const map = mapRef.current;
       if (map) {
-        // Restore tile pane and add tiles back
-        map.getContainer().querySelector('.leaflet-tile-pane')?.removeAttribute('style');
+        // Restore tile pane visibility
+        const tilePane = map.getContainer().querySelector('.leaflet-tile-pane');
+        if (tilePane) {
+          (tilePane as HTMLElement).style.display = '';
+        }
         if (streetLayersRef.current) {
+          (streetLayersRef.current as any).setOpacity(1);
           map.addLayer(streetLayersRef.current);
         }
         // Hide floorplan
