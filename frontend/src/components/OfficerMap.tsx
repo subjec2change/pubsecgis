@@ -135,9 +135,24 @@ export default function OfficerMap({
         floorplanLayersRef.current = fg;
       }
       // Zoom to fit all buildings
-      const bounds = floorplanBuildings.flatMap((b) => b.bounds as [L.LatLngTuple, L.LatLngTuple]);
-      if (bounds.length > 0) {
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+      const allCorners: [number, number][] = floorplanBuildings.flatMap(
+        (b) => {
+          const coords = b.bounds as [L.LatLngTuple, L.LatLngTuple];
+          return [coords[0].slice(0, 2) as [number, number], coords[1].slice(0, 2) as [number, number]];
+        }
+      );
+      if (allCorners.length > 0) {
+        const south = Math.min(...allCorners.map((c) => c[0]));
+        const north = Math.max(...allCorners.map((c) => c[0]));
+        const west = Math.min(...allCorners.map((c) => c[1]));
+        const east = Math.max(...allCorners.map((c) => c[1]));
+        map.fitBounds(
+          [
+            [south, west],
+            [north, east],
+          ] as L.LatLngBoundsLiteral,
+          { padding: [50, 50], maxZoom: 18 }
+        );
       }
       (floorplanLayersRef.current as any).setOpacity(1);
     } else {
