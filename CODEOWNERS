@@ -1,0 +1,17 @@
+# Code owners for PUBSECGIS
+# This repository is public and protected.
+
+# Core application
+/* @subjec2change
+
+# Backend
+backend/ @subjec2change
+
+# Frontend
+frontend/ @subjec2change
+
+# Database
+database/ @subjec2change
+
+# Documentation
+docs/ @subjec2change
