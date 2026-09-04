@@ -69,17 +69,14 @@ export default function OfficerMap({
     if (!map) return;
 
     if (currentView === 'floorplan') {
-      // Hide tiles via opacity, keep floorplan layerGroup visible
+      // Hide tiles via opacity only (same pattern as Kiosk)
       if (streetLayersRef.current) {
         (streetLayersRef.current as any).setOpacity(0);
       }
-      // Always ensure floorplan layer exists and is visible
+      // Create floorplan layerGroup once (on first floorplan toggle)
       if (!floorplanLayersRef.current) {
         const fg = L.layerGroup();
-        const allBounds: L.LatLngTuple[] = [];
         floorplanBuildings.forEach((building) => {
-          const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
-          allBounds.push(sw, ne);
           const rectangle = L.rectangle(building.bounds as L.LatLngBoundsLiteral, {
             color: '#ffffff',
             fillColor: building.color,
@@ -102,21 +99,22 @@ export default function OfficerMap({
             }
           });
           if (building.floors && building.floors.length > 0) {
-            building.floors.forEach((floor) => {
+            const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
+            building.floors.forEach(() => {
               const center: L.LatLngTuple = [
                 (sw[0] + ne[0]) / 2,
                 (sw[1] + ne[1]) / 2,
               ];
-              const floorMarker = L.circleMarker(center, {
+              L.circleMarker(center, {
                 radius: 6,
                 fillColor: '#ffffff',
                 fillOpacity: 0.8,
                 color: building.color,
                 weight: 2,
               }).addTo(fg);
-              floorMarker.bindPopup(`<strong>${floor.name}</strong>`);
             });
           }
+          const [sw, ne] = building.bounds as [L.LatLngTuple, L.LatLngTuple];
           const center: L.LatLngTuple = [
             (sw[0] + ne[0]) / 2,
             (sw[1] + ne[1]) / 2,
@@ -133,26 +131,6 @@ export default function OfficerMap({
         });
         fg.addTo(map);
         floorplanLayersRef.current = fg;
-      }
-      // Zoom to fit all buildings
-      const allCorners: [number, number][] = floorplanBuildings.flatMap(
-        (b) => {
-          const coords = b.bounds as [L.LatLngTuple, L.LatLngTuple];
-          return [coords[0].slice(0, 2) as [number, number], coords[1].slice(0, 2) as [number, number]];
-        }
-      );
-      if (allCorners.length > 0) {
-        const south = Math.min(...allCorners.map((c) => c[0]));
-        const north = Math.max(...allCorners.map((c) => c[0]));
-        const west = Math.min(...allCorners.map((c) => c[1]));
-        const east = Math.max(...allCorners.map((c) => c[1]));
-        map.fitBounds(
-          [
-            [south, west],
-            [north, east],
-          ] as L.LatLngBoundsLiteral,
-          { padding: [50, 50], maxZoom: 18 }
-        );
       }
       (floorplanLayersRef.current as any).setOpacity(1);
     } else {
