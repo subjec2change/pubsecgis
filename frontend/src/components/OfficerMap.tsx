@@ -41,6 +41,9 @@ export default function OfficerMap({
   const streetLayersRef = useRef<L.Layer | null>(null);
   const broadcastMarkerPositionsRef = useRef<Map<string, [number, number]>>(new Map());
 
+  // Store callbacks in refs so they don't trigger map recreation (same pattern as kiosk)
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
 
   // Placeholder floorplan buildings (ready to replace with real floorplan images)
   const floorplanBuildings = [
@@ -54,10 +57,12 @@ export default function OfficerMap({
   const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log(`[FloorplanToggle] effect fired, currentView=${currentView}`);
     if (currentView === 'floorplan') {
       const map = mapRef.current;
       if (map) {
         // Hide street map tiles — remove layer, hide opacity, and hide tile pane div
+        console.log(`[FloorplanToggle] Hiding tiles, panning to building area`);
         if (streetLayersRef.current) {
           (streetLayersRef.current as any).setOpacity(0);
           map.removeLayer(streetLayersRef.current);
@@ -183,9 +188,10 @@ export default function OfficerMap({
     streetLayersRef.current = tileLayer;
     mapRef.current = map;
 
+    // Use ref to avoid map recreation when onMapClick changes reference
     map.on('click', (e: L.LeafletMouseEvent) => {
-      if (onMapClick) {
-        onMapClick(e.latlng.lat, e.latlng.lng);
+      if (onMapClickRef.current) {
+        onMapClickRef.current(e.latlng.lat, e.latlng.lng);
       }
     });
 
@@ -194,24 +200,33 @@ export default function OfficerMap({
       map.remove();
       mapRef.current = null;
     };
-  }, [onMapClick]);
+  }, []); // Empty deps — map created once, persists like the kiosk
 
   // CRITICAL: Only update view when center/zoom actually change (not on every render)
   const prevCenterRef = useRef<[number, number]>([38.6270, -90.2418]);
   const prevZoomRef = useRef<number>(17);
 
+  // Debug: log every render to see what's happening
+  let renderCount = 0;
+  renderCount++;
+
   // Update center/zoom without recreating the map
   useEffect(() => {
     const map = mapRef.current;
-    if (map) {
-      // Only update if values actually changed (not just reference)
-      if (prevCenterRef.current[0] !== center[0] ||
-          prevCenterRef.current[1] !== center[1] ||
-          prevZoomRef.current !== zoom) {
-        map.setView(center, zoom, { animate: true, duration: 0.5 });
-        prevCenterRef.current = center;
-        prevZoomRef.current = zoom;
-      }
+    if (!map) return;
+    
+    console.log(`[OfficerMap] renderCount=${renderCount}, center=[${center[0]},${center[1]}], zoom=${zoom}, prevCenter=[${prevCenterRef.current[0]},${prevCenterRef.current[1]}], prevZoom=${prevZoomRef.current}`);
+
+    // Only update if values actually changed (not just reference)
+    if (prevCenterRef.current[0] !== center[0] ||
+        prevCenterRef.current[1] !== center[1] ||
+        prevZoomRef.current !== zoom) {
+      console.log(`[OfficerMap] VIEW CHANGED — calling setView(${center[0]}, ${center[1]}, ${zoom})`);
+      map.setView(center, zoom, { animate: true, duration: 0.5 });
+      prevCenterRef.current = center;
+      prevZoomRef.current = zoom;
+    } else {
+      console.log(`[OfficerMap] NO VIEW CHANGE — guard prevented setView`);
     }
   }, [center, zoom]);
 
@@ -287,10 +302,12 @@ export default function OfficerMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    console.log(`[BroadcastMarkers] effect fired, broadcastIncidents=${broadcastIncidents.length}, existingRefs=${broadcastMarkersRef.current.size}, existingPositions=${broadcastMarkerPositionsRef.current.size}`);
 
     // Remove markers for incidents no longer in broadcastIncidents
     broadcastMarkersRef.current.forEach((marker, id) => {
       if (!broadcastIncidents.find((bi) => bi.id === id)) {
+        console.log(`[BroadcastMarkers] removing marker for id=${id}`);
         marker.remove();
         broadcastMarkersRef.current.delete(id);
         broadcastMarkerPositionsRef.current.delete(id);
@@ -302,6 +319,7 @@ export default function OfficerMap({
 
       if (broadcastMarkersRef.current.has(bi.id)) {
         // Update existing marker style only
+        console.log(`[BroadcastMarkers] updating style for existing marker id=${bi.id}`);
         const marker = broadcastMarkersRef.current.get(bi.id)!;
         marker.setStyle({
           fillColor: color,
@@ -318,6 +336,7 @@ export default function OfficerMap({
           const latOffset = (random() - 0.5) * 0.0006;
           const lngOffset = (random() - 0.5) * 0.0006;
           position = [center[0] + latOffset, center[1] + lngOffset];
+          console.log(`[BroadcastMarkers] creating new marker id=${bi.id} at [${position[0]},${position[1]}] from center [${center[0]},${center[1]}]`);
           broadcastMarkerPositionsRef.current.set(bi.id, position);
         }
 
@@ -338,6 +357,7 @@ export default function OfficerMap({
         );
 
         broadcastMarkersRef.current.set(bi.id, marker);
+        console.log(`[BroadcastMarkers] created marker id=${bi.id}, total=${broadcastMarkersRef.current.size}`);
       }
     });
   }, [broadcastIncidents, colorMap, seededRandom]);
