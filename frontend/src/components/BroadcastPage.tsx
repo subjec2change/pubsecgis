@@ -37,6 +37,32 @@ export default function BroadcastPage() {
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentShift, setCurrentShift] = useState('');
+  const [shiftIcon, setShiftIcon] = useState('');
+
+  const getShiftInfo = useCallback(() => {
+    const hour = new Date().getHours() + new Date().getMinutes() / 60;
+    if (hour < 6.5 || hour >= 22.5) return { name: 'Night Shift', icon: '🌙' };
+    if (hour < 14.5) return { name: 'Day Shift', icon: '☀️' };
+    return { name: 'Evening Shift', icon: '🌇' };
+  }, []);
+
+  // Initial shift detection
+  useEffect(() => {
+    const info = getShiftInfo();
+    setCurrentShift(info.name);
+    setShiftIcon(info.icon);
+  }, [getShiftInfo]);
+
+  // Auto-update shift every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const info = getShiftInfo();
+      setCurrentShift(info.name);
+      setShiftIcon(info.icon);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [getShiftInfo]);
 
   const loadBroadcast = useCallback(async () => {
     try {
@@ -142,6 +168,9 @@ export default function BroadcastPage() {
           <div className="header-badge">
             <span className="pulse"></span>
             {activeIncidents.length} ACTIVE
+          </div>
+          <div className="header-shift">
+            {shiftIcon} {currentShift}
           </div>
           <div className="header-time">{currentTime.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
           <div className="refresh-timer">
