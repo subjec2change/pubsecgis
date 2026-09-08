@@ -35,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('access_token');
     setToken(null);
     setUser(null);
+    window.location.href = '/login';
   }, []);
 
   // Check existing token on mount
