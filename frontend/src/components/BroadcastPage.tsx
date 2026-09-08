@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { getBroadcastIncidents, getColorConfig } from '../api/endpoints';
 import { INCIDENT_TYPE_LABELS, DEFAULT_COLOR_MAP } from '../types';
 import type { BroadcastIncident, ColorMapping } from '../types';
 import OfficerMap from './OfficerMap';
+import ViewSwitcher from './ViewSwitcher';
+
+const VIEW_KEY = 'pusecgis_view';
 
 const RESPONSE_PHASE_LABELS: Record<string, string> = {
   en_route: 'Officer en route',
@@ -28,9 +32,17 @@ const SCREEN_TITLES: Record<string, string> = {
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
 
+type ViewId = 'officer' | 'broadcast';
+
 export default function BroadcastPage() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [searchParams] = useSearchParams();
   const screenId = searchParams.get('screen') || 'main';
+
+  const [currentView, setCurrentView] = useState<ViewId>(
+    (localStorage.getItem(VIEW_KEY) as ViewId) || 'broadcast'
+  );
 
   const [incidents, setIncidents] = useState<BroadcastIncident[]>([]);
   const [colorConfig, setColorConfig] = useState<ColorMapping[]>([]);
@@ -257,6 +269,13 @@ export default function BroadcastPage() {
   const screenTitle = SCREEN_TITLES[screenId] || 'Broadcast Screen';
   const openCount = activeIncidents.filter((i) => i.status === 'open').length;
 
+  const handleViewSwitch = (view: ViewId) => {
+    setCurrentView(view);
+    if (view !== 'broadcast') {
+      navigate(`/${view}`);
+    }
+  };
+
   return (
     <div className="broadcast-page">
       {/* Top Bar */}
@@ -267,6 +286,7 @@ export default function BroadcastPage() {
             <div className="header-title">{screenTitle}</div>
             <div className="header-subtitle">LIVE BROADCAST — NO ACTION REQUIRED</div>
           </div>
+          {user && <ViewSwitcher currentView={currentView} onSwitch={handleViewSwitch} />}
         </div>
 
         <div className="header-right">
@@ -282,6 +302,17 @@ export default function BroadcastPage() {
           <div className="last-updated">
             Updated: {lastUpdated.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
           </div>
+          {user && (
+            <>
+              <div className="header-user">
+                <span>👤</span>
+                <span>{user.username}</span>
+              </div>
+              <button className="header-logout" onClick={logout}>
+                Logout
+              </button>
+            </>
+          )}
         </div>
       </header>
 

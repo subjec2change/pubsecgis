@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ViewSwitcher from './ViewSwitcher';
 import Sidebar from './Sidebar';
 import OfficerMap from './OfficerMap';
 import IncidentForm from './IncidentForm';
@@ -10,9 +12,17 @@ import {
   getColorConfig,
 } from '../api/endpoints';
 
+const VIEW_KEY = 'pusecgis_view';
+
+type ViewId = 'officer' | 'broadcast';
+
 export default function OfficerPage() {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentView, setCurrentView] = useState<ViewId>(
+    (localStorage.getItem(VIEW_KEY) as ViewId) || 'officer'
+  );
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -20,6 +30,10 @@ export default function OfficerPage() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(VIEW_KEY, currentView);
+  }, [currentView]);
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [broadcastIncidents, setBroadcastIncidents] = useState<BroadcastIncident[]>([]);
@@ -29,7 +43,7 @@ export default function OfficerPage() {
   const [editingIncident, setEditingIncident] = useState<Incident | null>(null);
 
   // Floorplan navigation state
-  const [currentView, setCurrentView] = useState<'streetmap' | 'floorplan'>('streetmap');
+  const [mapView, setMapView] = useState<'streetmap' | 'floorplan'>('streetmap');
   const [selectedBuildingName, setSelectedBuildingName] = useState<string | null>(null);
   const [selectedFloorName, setSelectedFloorName] = useState<string | null>(null);
 
@@ -115,7 +129,7 @@ export default function OfficerPage() {
   };
 
   const handleCurrentViewChange = (view: 'streetmap' | 'floorplan') => {
-    setCurrentView(view);
+    setMapView(view);
   };
 
   const handleBuildingSelect = (_buildingId: string | null, buildingName?: string) => {
@@ -142,6 +156,13 @@ export default function OfficerPage() {
       loadIncidents();
     } catch (err) {
       console.error('Failed to delete incident:', err);
+    }
+  };
+
+  const handleViewSwitch = (view: ViewId) => {
+    setCurrentView(view);
+    if (view !== 'officer') {
+      navigate(`/${view}`);
     }
   };
 
@@ -174,6 +195,7 @@ export default function OfficerPage() {
             <div className="header-title">Officer Dashboard</div>
             <div className="header-subtitle">BJC Public Safety — Barnes-Jewish Hospital</div>
           </div>
+          <ViewSwitcher currentView={currentView} onSwitch={handleViewSwitch} />
         </div>
 
         <div className="header-right">
@@ -224,7 +246,7 @@ export default function OfficerPage() {
           onIncidentClick={handleIncidentSelect}
           onMapClick={handleMapClick}
           selectedIncidentId={selectedIncidentId}
-          currentView={currentView}
+          currentView={mapView}
           onCurrentViewChange={handleCurrentViewChange}
           onBuildingSelect={handleBuildingSelect}
           onFloorSelect={handleFloorSelect}
