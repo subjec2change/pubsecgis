@@ -75,8 +75,9 @@ export default function OfficerPage() {
 
   const loadIncidents = async () => {
     try {
-      const params: Record<string, string | number> = { include_archived: 1 };
-      if (filterStatus) params.status = filterStatus;
+      const params: Record<string, string | number> = {};
+      if (filterStatus === 'archived') params.include_archived = 1;
+      if (filterStatus && filterStatus !== 'archived') params.status = filterStatus;
       if (filterType) params.type = filterType;
 
       const data = await getIncidents(params as Record<string, string>);
