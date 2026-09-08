@@ -223,6 +223,7 @@ export default function OfficerPage() {
         {/* Sidebar */}
         <Sidebar
           incidents={incidents}
+          colorConfig={colorConfig}
           selectedIncidentId={selectedIncidentId}
           onIncidentSelect={handleIncidentSelect}
           onMapClick={handleMapClick}

@@ -113,6 +113,14 @@ export async function getColorConfig(): Promise<ColorMapping[]> {
   return res.data;
 }
 
+// Heatmap
+export async function getHeatmapData(centerLat: number, centerLng: number, radius = 500, limit = 200): Promise<{ lat: number; lng: number; intensity: number }[]> {
+  const res = await client.get<{ lat: number; lng: number; intensity: number }[]>('/incidents/heatmap', {
+    params: { lat: centerLat, lng: centerLng, radius, limit },
+  });
+  return res.data;
+}
+
 // Handoff
 export async function createHandoffNote(data: {
   shift_id: number | string;

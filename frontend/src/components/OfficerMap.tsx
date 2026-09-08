@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.heat';
 import type { Incident, BroadcastIncident, ColorMapping } from '../types';
 import { DEFAULT_COLOR_MAP, INCIDENT_TYPE_LABELS } from '../types';
+import { getHeatmapData } from '../api/endpoints';
 
 interface OfficerMapProps {
   incidents: Incident[];
@@ -40,6 +42,8 @@ export default function OfficerMap({
   const floorplanLayersRef = useRef<L.LayerGroup | null>(null);
   const streetLayersRef = useRef<L.Layer | null>(null);
   const broadcastMarkerPositionsRef = useRef<Map<string, [number, number]>>(new Map());
+  const activeHeatmapRef = useRef<L.Layer | null>(null);
+  const heatmapLegendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Store callbacks in refs so they don't trigger re-renders (same pattern as kiosk)
   const onMapClickRef = useRef(onMapClick);
@@ -52,6 +56,10 @@ export default function OfficerMap({
   onBuildingSelectRef.current = onBuildingSelect;
   const onFloorSelectRef = useRef(onFloorSelect);
   onFloorSelectRef.current = onFloorSelect;
+
+  // Heatmap state
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [heatmapLegendVisible, setHeatmapLegendVisible] = useState(false);
 
   // Placeholder floorplan buildings (ready to replace with real floorplan images)
   const floorplanBuildings = [
@@ -167,6 +175,38 @@ export default function OfficerMap({
       }
     });
 
+    // Add heatmap layer if initially enabled
+    if (showHeatmap) {
+    map.whenReady(async () => {
+      try {
+        const heatmapData = await getHeatmapData(center[0], center[1], 500, 200);
+        if (heatmapData.length > 0 && mapRef.current) {
+          // Transform { lat, lng, intensity } objects to [lat, lng, intensity] tuples
+          // Cast required: @types/leaflet.heat expects L.HeatLatLngTuple = [number, number, number]
+          const heatPoints = heatmapData.map(
+            (d) => [d.lat, d.lng, d.intensity] as L.HeatLatLngTuple,
+          );
+          const heatLayer = L.heatLayer(heatPoints, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 18,
+          }).addTo(map);
+          activeHeatmapRef.current = heatLayer;
+        }
+      } catch (err) {
+        console.error('Failed to load heatmap data:', err);
+      }
+    });
+    }
+
+    // Cleanup heatmap layer on map removal
+    map.once('remove', () => {
+      if (activeHeatmapRef.current) {
+        map.removeLayer(activeHeatmapRef.current);
+        activeHeatmapRef.current = null;
+      }
+    });
+
     return () => {
       map.off('click');
       map.remove();
@@ -191,6 +231,71 @@ export default function OfficerMap({
       prevZoomRef.current = zoom;
     }
   }, [center, zoom]);
+
+  // Toggle heatmap handler
+  const handleHeatmapToggle = useCallback(async () => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const newShowHeatmap = !showHeatmap;
+    setShowHeatmap(newShowHeatmap);
+
+    if (newShowHeatmap) {
+      // Turn on heatmap
+      try {
+        const heatmapData = await getHeatmapData(center[0], center[1], 500, 200);
+        if (heatmapData.length > 0) {
+          // Transform { lat, lng, intensity } objects to [lat, lng, intensity] tuples
+          // Cast required: @types/leaflet.heat expects L.HeatLatLngTuple = [number, number, number]
+          const heatPoints = heatmapData.map(
+            (d) => [d.lat, d.lng, d.intensity] as L.HeatLatLngTuple,
+          );
+          const heatLayer = L.heatLayer(heatPoints, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 18,
+          }).addTo(map);
+          activeHeatmapRef.current = heatLayer;
+        }
+      } catch (err) {
+        console.error('Failed to load heatmap data:', err);
+        setShowHeatmap(false);
+        return;
+      }
+
+      // Show legend and start fade timer
+      setHeatmapLegendVisible(true);
+      if (heatmapLegendTimerRef.current) {
+        clearTimeout(heatmapLegendTimerRef.current);
+      }
+      heatmapLegendTimerRef.current = setTimeout(() => {
+        setHeatmapLegendVisible(false);
+      }, 5000);
+    } else {
+      // Turn off heatmap
+      if (activeHeatmapRef.current) {
+        map.removeLayer(activeHeatmapRef.current);
+        activeHeatmapRef.current = null;
+      }
+      setHeatmapLegendVisible(false);
+      if (heatmapLegendTimerRef.current) {
+        clearTimeout(heatmapLegendTimerRef.current);
+      }
+    }
+  }, [showHeatmap, center]);
+
+  // Reset fade timer on hover
+  const handleLegendMouseEnter = useCallback(() => {
+    if (heatmapLegendTimerRef.current) {
+      clearTimeout(heatmapLegendTimerRef.current);
+    }
+  }, []);
+
+  const handleLegendMouseLeave = useCallback(() => {
+    heatmapLegendTimerRef.current = setTimeout(() => {
+      setHeatmapLegendVisible(false);
+    }, 500);
+  }, []);
 
   // Fix map pulsing: don't reposition markers on every render, only on incident changes
   const markersInitializedRef = useRef(false);
@@ -368,6 +473,67 @@ export default function OfficerMap({
             Floorplan
           </button>
         </div>
+      </div>
+      {/* Heatmap Toggle & Legend */}
+      <div style={{
+        position: 'absolute', top: '1rem', right: '1rem', zIndex: 1000,
+        display: 'flex', alignItems: 'center', gap: '0.5rem',
+      }}>
+        {/* Legend - slides in when heatmap is active */}
+        {heatmapLegendVisible && (
+          <div
+            style={{
+              background: 'rgba(11, 18, 25, 0.95)',
+              border: '1px solid var(--border)',
+              padding: '0.5rem 0.75rem',
+              borderRadius: '6px',
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontSize: '0.6rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              opacity: heatmapLegendVisible ? 1 : 0,
+              transform: heatmapLegendVisible ? 'translateX(0)' : 'translateX(10px)',
+              transition: 'opacity 0.3s ease, transform 0.3s ease',
+              pointerEvents: 'none',
+            }}
+            onMouseEnter={handleLegendMouseEnter}
+            onMouseLeave={handleLegendMouseLeave}
+          >
+            <span style={{ color: '#d44a42' }}>🔴</span>
+            <div style={{
+              width: '60px',
+              height: '8px',
+              borderRadius: '4px',
+              background: 'linear-gradient(to right, #dc2626, #eab308, #3b82f6)',
+            }} />
+            <span style={{ color: '#3b82f6' }}>🔵</span>
+            <span style={{ color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>
+              Hot → Cool
+            </span>
+          </div>
+        )}
+        {/* Heatmap Toggle Button */}
+        <button
+          onClick={handleHeatmapToggle}
+          title={showHeatmap ? 'Hide Heatmap' : 'Show Heatmap'}
+          style={{
+            width: '2.25rem',
+            height: '2.25rem',
+            borderRadius: '50%',
+            border: '1px solid var(--border)',
+            background: showHeatmap ? 'rgba(220, 38, 38, 0.2)' : 'rgba(11, 18, 25, 0.95)',
+            color: showHeatmap ? '#dc2626' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          🔥
+        </button>
       </div>
       {/* Building/Floor Selection Panel */}
       {currentView === 'floorplan' && (

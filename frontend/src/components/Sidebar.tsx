@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Incident, HandoffNote } from '../types';
+import type { Incident, HandoffNote, ColorMapping } from '../types';
 import {
   getHandoffNotes,
   createHandoffNote,
@@ -7,6 +7,7 @@ import {
   updateIncident as apiUpdateIncident,
 } from '../api/endpoints';
 import { INCIDENT_TYPE_LABELS, DEFAULT_COLOR_MAP, SHIFTS } from '../types';
+import TrendsTab from './TrendsTab';
 
 const RESPONSE_PHASE_LABELS: Record<string, string> = {
   en_route: 'Officer en route',
@@ -22,6 +23,7 @@ const RESPONSE_PHASE_LABELS: Record<string, string> = {
 
 interface SidebarProps {
   incidents: Incident[];
+  colorConfig: ColorMapping[];
   selectedIncidentId: string | null;
   onIncidentSelect: (incident: Incident) => void;
   onMapClick: () => void;
@@ -42,6 +44,7 @@ interface SidebarProps {
 
 export default function Sidebar({
   incidents,
+  colorConfig,
   selectedIncidentId,
   onIncidentSelect,
   onMapClick,
@@ -62,6 +65,7 @@ export default function Sidebar({
   const [justifyIncident, setJustifyIncident] = useState<Incident | null>(null);
   const [justifyText, setJustifyText] = useState('');
   const [justifying, setJustifying] = useState(false);
+  const [activeTab, setActiveTab] = useState<'incidents' | 'trends'>('incidents');
 
   const openJustify = (incident: Incident) => {
     setJustifyIncident(incident);
@@ -91,7 +95,6 @@ export default function Sidebar({
 
   const loadHandoffNotes = useCallback(async () => {
     try {
-      // Convert shift name to numeric ID
       let shiftId: number | undefined;
       if (filterShift) {
         const shiftCode = filterShift.toUpperCase();
@@ -114,7 +117,6 @@ export default function Sidebar({
 
     setSavingNote(true);
     try {
-      // Convert shift name to numeric ID
       let shiftId: number | undefined;
       if (filterShift) {
         const shiftCode = filterShift.toUpperCase();
@@ -155,7 +157,6 @@ export default function Sidebar({
       if (filterType && i.incident_type !== filterType) return false;
       if (filterStatus && i.status !== filterStatus) return false;
       if (filterShift) {
-        // Map shift name to shift code then to numeric ID
         const nameToCode: Record<string, string> = {
           'day': 'DAY',
           'evening': 'EVE',
@@ -168,7 +169,6 @@ export default function Sidebar({
       return true;
     })
     .sort((a, b) => {
-      // Severity order: open > escalating > monitoring > resolved > archived
       const severityOrder: Record<string, number> = {
         open: 0,
         escalating: 1,
@@ -178,7 +178,6 @@ export default function Sidebar({
       };
       const severityDiff = (severityOrder[a.status] ?? 5) - (severityOrder[b.status] ?? 5);
       if (severityDiff !== 0) return severityDiff;
-      // Within same severity, newest first
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
@@ -187,138 +186,90 @@ export default function Sidebar({
 
   return (
     <div className="sidebar" style={{ position: 'relative' }}>
-      <div className="sidebar-header">
-        <div className="sidebar-title">
-          📋 Active Incidents <span className="count">{activeIncidents.length}</span>
-        </div>
-        <div className="filters">
-          <select value={filterType} onChange={(e) => onFilterTypeChange(e.target.value)}>
-            <option value="">All Types</option>
-            {(Object.keys(INCIDENT_TYPE_LABELS) as (keyof typeof INCIDENT_TYPE_LABELS)[]).map(
-              (type) => (
-                <option key={type} value={type}>
-                  {INCIDENT_TYPE_LABELS[type]}
-                </option>
-              )
-            )}
-          </select>
-
-          <select value={filterStatus} onChange={(e) => onFilterStatusChange(e.target.value)}>
-            <option value="">All Status</option>
-            <option value="open">Open</option>
-            <option value="monitoring">Monitoring</option>
-            <option value="escalating">Escalating</option>
-            <option value="resolved">Resolved</option>
-            <option value="archived">Archived</option>
-          </select>
-
-          <select value={filterShift} onChange={(e) => onFilterShiftChange(e.target.value)}>
-            <option value="">All Shifts</option>
-            {SHIFTS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button className="new-incident-btn" onClick={onMapClick}>
-          ＋ New Incident
-        </button>
+      {/* Tab row */}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        {(['incidents', 'trends'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              flex: 1,
+              padding: '8px 0',
+              fontSize: '0.6rem',
+              fontWeight: activeTab === tab ? 700 : 500,
+              fontFamily: "'IBM Plex Mono', monospace",
+              background: activeTab === tab ? 'var(--accent-dim)' : 'transparent',
+              color: activeTab === tab ? 'var(--accent)' : 'var(--text-secondary)',
+              border: 'none',
+              borderBottom: activeTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {tab === 'incidents' ? '📋 Incidents' : '📊 Trends & Reports'}
+          </button>
+        ))}
       </div>
 
-      <div className="incident-list">
-        {filteredIncidents.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📍</div>
-            No incidents found<br/>
-            <span style={{ fontSize: '0.8rem', marginTop: '0.5rem', display: 'block' }}>
-              Click on the map or use "New Incident" to create one
-            </span>
+      {/* Incidents tab content */}
+      {activeTab === 'incidents' && (
+        <>
+          <div className="sidebar-header">
+            <div className="sidebar-title">
+              📋 Active Incidents <span className="count">{activeIncidents.length}</span>
+            </div>
+            <div className="filters">
+              <select value={filterType} onChange={(e) => onFilterTypeChange(e.target.value)}>
+                <option value="">All Types</option>
+                {(Object.keys(INCIDENT_TYPE_LABELS) as (keyof typeof INCIDENT_TYPE_LABELS)[]).map(
+                  (type) => (
+                    <option key={type} value={type}>
+                      {INCIDENT_TYPE_LABELS[type]}
+                    </option>
+                  )
+                )}
+              </select>
+
+              <select value={filterStatus} onChange={(e) => onFilterStatusChange(e.target.value)}>
+                <option value="">All Status</option>
+                <option value="open">Open</option>
+                <option value="monitoring">Monitoring</option>
+                <option value="escalating">Escalating</option>
+                <option value="resolved">Resolved</option>
+                <option value="archived">Archived</option>
+              </select>
+
+              <select value={filterShift} onChange={(e) => onFilterShiftChange(e.target.value)}>
+                <option value="">All Shifts</option>
+                {SHIFTS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button className="new-incident-btn" onClick={onMapClick}>
+              ＋ New Incident
+            </button>
           </div>
-        ) : (
-          <>
-            {activeIncidents.map((incident) => (
-              <div
-                key={incident.id}
-                className={`incident-card ${selectedIncidentId === incident.id ? 'selected' : ''}`}
-                style={{
-                  ['--card-color' as string]: DEFAULT_COLOR_MAP[incident.incident_type] || '#3b82f6',
-                }}
-                onClick={() => onIncidentSelect(incident)}
-              >
-                <div className="incident-card-header">
-                  <div className="incident-type">
-                    <span
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        background: DEFAULT_COLOR_MAP[incident.incident_type] || '#666',
-                        display: 'inline-block',
-                        flexShrink: 0,
-                      }}
-                    />
-                    {INCIDENT_TYPE_LABELS[incident.incident_type] || incident.incident_type}
-                  </div>
-                  <span
-                    className={`status-badge status-${incident.status}`}
-                  >
-                    {incident.status}
-                  </span>
-                </div>
 
-                <div className="incident-details">
-                  <div className="location">📍 {incident.location_ref}</div>
-                  {incident.response_phase && (
-                    <div style={{ marginTop: '0.2rem', fontSize: '0.75rem', color: 'var(--accent)' }}>
-                      {RESPONSE_PHASE_LABELS[incident.response_phase] || incident.response_phase}
-                    </div>
-                  )}
-                  {incident.description && (
-                    <div style={{ marginTop: '0.2rem', fontSize: '0.8rem' }}>{incident.description}</div>
-                  )}
-                  <div className="time">
-                    {new Date(incident.created_at).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                      hour12: false,
-                    })}
-                  </div>
-                </div>
-
-                <div className="incident-actions" onClick={(e) => e.stopPropagation()}>
-                  {incident.status !== 'resolved' && incident.status !== 'archived' && (
-                    <button
-                      className="btn-sm btn-resolve"
-                      onClick={() => openJustify(incident)}
-                    >
-                      ✓ Resolve
-                    </button>
-                  )}
-                  <button
-                    className="btn-sm btn-edit"
-                    onClick={() => handleEditIncident(incident)}
-                  >
-                    ✏️ Edit
-                  </button>
-                  <button
-                    className="btn-sm btn-delete"
-                    onClick={() => handleDeleteIncident(incident.id)}
-                  >
-                    🗑️ Delete
-                  </button>
-                </div>
+          <div className="incident-list">
+            {filteredIncidents.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">📍</div>
+                No incidents found<br />
+                <span style={{ fontSize: '0.8rem', marginTop: '0.5rem', display: 'block' }}>
+                  Click on the map or use "New Incident" to create one
+                </span>
               </div>
-            ))}
-            {archivedIncidents.length > 0 && (
+            ) : (
               <>
-                <div className="archived-divider">— Archived —</div>
-                {archivedIncidents.map((incident) => (
+                {activeIncidents.map((incident) => (
                   <div
                     key={incident.id}
-                    className={`incident-card archived ${selectedIncidentId === incident.id ? 'selected' : ''}`}
+                    className={`incident-card ${selectedIncidentId === incident.id ? 'selected' : ''}`}
                     style={{
                       ['--card-color' as string]: DEFAULT_COLOR_MAP[incident.incident_type] || '#3b82f6',
                     }}
@@ -347,6 +298,11 @@ export default function Sidebar({
 
                     <div className="incident-details">
                       <div className="location">📍 {incident.location_ref}</div>
+                      {incident.response_phase && (
+                        <div style={{ marginTop: '0.2rem', fontSize: '0.75rem', color: 'var(--accent)' }}>
+                          {RESPONSE_PHASE_LABELS[incident.response_phase] || incident.response_phase}
+                        </div>
+                      )}
                       {incident.description && (
                         <div style={{ marginTop: '0.2rem', fontSize: '0.8rem' }}>{incident.description}</div>
                       )}
@@ -362,19 +318,14 @@ export default function Sidebar({
                     </div>
 
                     <div className="incident-actions" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        className="btn-sm btn-reopen"
-                        onClick={async () => {
-                          try {
-                            await apiUpdateIncident(incident.id, { status: 'open' });
-                            onIncidentCreated();
-                          } catch (err) {
-                            console.error('Failed to reopen:', err);
-                          }
-                        }}
-                      >
-                        ↻ Reopen
-                      </button>
+                      {incident.status !== 'resolved' && incident.status !== 'archived' && (
+                        <button
+                          className="btn-sm btn-resolve"
+                          onClick={() => openJustify(incident)}
+                        >
+                          ✓ Resolve
+                        </button>
+                      )}
                       <button
                         className="btn-sm btn-edit"
                         onClick={() => handleEditIncident(incident)}
@@ -390,49 +341,141 @@ export default function Sidebar({
                     </div>
                   </div>
                 ))}
+                {archivedIncidents.length > 0 && (
+                  <>
+                    <div className="archived-divider">— Archived —</div>
+                    {archivedIncidents.map((incident) => (
+                      <div
+                        key={incident.id}
+                        className={`incident-card archived ${selectedIncidentId === incident.id ? 'selected' : ''}`}
+                        style={{
+                          ['--card-color' as string]: DEFAULT_COLOR_MAP[incident.incident_type] || '#3b82f6',
+                        }}
+                        onClick={() => onIncidentSelect(incident)}
+                      >
+                        <div className="incident-card-header">
+                          <div className="incident-type">
+                            <span
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: '50%',
+                                background: DEFAULT_COLOR_MAP[incident.incident_type] || '#666',
+                                display: 'inline-block',
+                                flexShrink: 0,
+                              }}
+                            />
+                            {INCIDENT_TYPE_LABELS[incident.incident_type] || incident.incident_type}
+                          </div>
+                          <span
+                            className={`status-badge status-${incident.status}`}
+                          >
+                            {incident.status}
+                          </span>
+                        </div>
+
+                        <div className="incident-details">
+                          <div className="location">📍 {incident.location_ref}</div>
+                          {incident.description && (
+                            <div style={{ marginTop: '0.2rem', fontSize: '0.8rem' }}>{incident.description}</div>
+                          )}
+                          <div className="time">
+                            {new Date(incident.created_at).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: false,
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="incident-actions" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            className="btn-sm btn-reopen"
+                            onClick={async () => {
+                              try {
+                                await apiUpdateIncident(incident.id, { status: 'open' });
+                                onIncidentCreated();
+                              } catch (err) {
+                                console.error('Failed to reopen:', err);
+                              }
+                            }}
+                          >
+                            ↻ Reopen
+                          </button>
+                          <button
+                            className="btn-sm btn-edit"
+                            onClick={() => handleEditIncident(incident)}
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            className="btn-sm btn-delete"
+                            onClick={() => handleDeleteIncident(incident.id)}
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </>
             )}
-          </>
-        )}
-      </div>
+          </div>
 
-      <div className="handoff-section">
-        <h3>📝 Shift Handoff Notes</h3>
-        <div className="handoff-notes-list">
-          {handoffNotes.length === 0 ? (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.5rem 0' }}>
-              No handoff notes yet for this shift
-            </div>
-          ) : (
-            handoffNotes.map((note) => (
-              <div key={note.id} className="handoff-note">
-                <div className="note-meta">
-                  {note.location_ref && `📍 ${note.location_ref} · `}
-                  {new Date(note.created_at).toLocaleString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: false,
-                  })}
+          <div className="handoff-section">
+            <h3>📝 Shift Handoff Notes</h3>
+            <div className="handoff-notes-list">
+              {handoffNotes.length === 0 ? (
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.5rem 0' }}>
+                  No handoff notes yet for this shift
                 </div>
-                {note.note}
-              </div>
-            ))
-          )}
-        </div>
+              ) : (
+                handoffNotes.map((note) => (
+                  <div key={note.id} className="handoff-note">
+                    <div className="note-meta">
+                      {note.location_ref && `📍 ${note.location_ref} · `}
+                      {new Date(note.created_at).toLocaleString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: false,
+                      })}
+                    </div>
+                    {note.note}
+                  </div>
+                ))
+              )}
+            </div>
 
-        <form className="handoff-input-row" onSubmit={handleAddHandoffNote}>
-          <textarea
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            placeholder="Add a handoff note..."
-            rows={2}
+            <form className="handoff-input-row" onSubmit={handleAddHandoffNote}>
+              <textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Add a handoff note..."
+                rows={2}
+              />
+              <button type="submit" disabled={savingNote || !newNote.trim()}>
+                {savingNote ? '...' : 'Add Note'}
+              </button>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* Trends & Reports tab */}
+      {activeTab === 'trends' && (
+        <div style={{ padding: 8, overflowY: 'auto', flex: 1 }}>
+          <TrendsTab
+            colorConfig={colorConfig}
+            filterStatus={filterStatus}
+            onFilterStatusChange={onFilterStatusChange}
           />
-          <button type="submit" disabled={savingNote || !newNote.trim()}>
-            {savingNote ? '...' : 'Add Note'}
-          </button>
-        </form>
-      </div>
+        </div>
+      )}
 
+      {/* Justify popup (always visible) */}
       {justifyOpen && justifyIncident && (
         <div className="justify-popup-overlay" onClick={() => setJustifyOpen(false)}>
           <div className="justify-popup" onClick={(e) => e.stopPropagation()}>

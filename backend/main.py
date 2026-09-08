@@ -60,9 +60,11 @@ from routes.handoff import router as handoff_router
 from routes.locations import router as locations_router
 from routes.users import router as users_router
 from routes.shifts import router as shifts_router
+from routes.analytics import router as analytics_router
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(incidents_router, prefix="/api/incidents", tags=["Incidents"])
+app.include_router(analytics_router, prefix="/api/incidents", tags=["Incidents"])
 app.include_router(broadcast_router, prefix="/api/broadcast", tags=["Broadcast"])
 app.include_router(handoff_router, prefix="/api/handoff", tags=["Handoff Notes"])
 app.include_router(locations_router, prefix="/api/locations", tags=["Locations"])
