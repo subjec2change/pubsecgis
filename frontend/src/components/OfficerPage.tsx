@@ -162,6 +162,7 @@ export default function OfficerPage() {
 
   const handleViewSwitch = (view: ViewId) => {
     setCurrentView(view);
+    localStorage.setItem(VIEW_KEY, view);
     if (view !== 'officer') {
       navigate(`/${view}`);
     }

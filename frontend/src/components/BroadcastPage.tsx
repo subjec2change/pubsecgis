@@ -40,9 +40,7 @@ export default function BroadcastPage() {
   const [searchParams] = useSearchParams();
   const screenId = searchParams.get('screen') || 'main';
 
-  const [currentView, setCurrentView] = useState<ViewId>(
-    (localStorage.getItem(VIEW_KEY) as ViewId) || 'broadcast'
-  );
+  const [currentView, setCurrentView] = useState<ViewId>('broadcast');
 
   const [incidents, setIncidents] = useState<BroadcastIncident[]>([]);
   const [colorConfig, setColorConfig] = useState<ColorMapping[]>([]);
@@ -270,6 +268,7 @@ export default function BroadcastPage() {
 
   const handleViewSwitch = (view: ViewId) => {
     setCurrentView(view);
+    localStorage.setItem(VIEW_KEY, view);
     if (view !== 'broadcast') {
       navigate(`/${view}`);
     }
