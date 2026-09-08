@@ -1,6 +1,5 @@
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import timedelta, datetime, timezone
 
 from models.database import get_session, Incident
 from models.schemas import BroadcastIncidentResponse, IncidentTypeConfig, INCIDENT_TYPE_MAP
@@ -10,17 +9,14 @@ router = APIRouter()
 
 @router.get("/incidents", response_model=list[BroadcastIncidentResponse])
 async def list_broadcast_incidents(
-    hours: int = Query(2, description="Return incidents from the last N hours"),
     db: AsyncSession = Depends(get_session),
 ):
-    """Public endpoint for broadcast screens - no auth required."""
+    """Public endpoint for broadcast screens - shows all open/escalating/monitoring incidents."""
     from sqlalchemy import select
 
-    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
     result = await db.execute(
         select(Incident).where(
-            Incident.created_at >= cutoff,
-            Incident.status != "archived",
+            Incident.status.in_(["open", "escalating", "monitoring"]),
         ).order_by(Incident.created_at.desc())
     )
     incidents = list(result.scalars().all())
