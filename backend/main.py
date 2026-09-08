@@ -2,17 +2,35 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+import asyncio
 
 from config import settings
 
 
+async def auto_archive_loop():
+    """Background task: auto-archive resolved incidents every 30 minutes."""
+    from models.database import async_session
+    from crud.incidents import archive_expired_incidents
+    while True:
+        await asyncio.sleep(1800)  # 30 minutes
+        try:
+            async with async_session() as session:
+                count = await archive_expired_incidents(session)
+                if count:
+                    print(f"[auto-archive] Archived {count} resolved incident(s)")
+        except Exception as e:
+            print(f"[auto-archive] Error: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: verify DB on startup, clean up on shutdown."""
+    """Application lifespan: verify DB on startup, start auto-archive, clean up on shutdown."""
     from models.database import engine
     async with engine.connect() as conn:
         result = await conn.execute(text("SELECT 1"))
         print("Database connection verified")
+    # Start auto-archive background task
+    asyncio.create_task(auto_archive_loop())
     yield
     await engine.dispose()
     print("Backend shutting down")
