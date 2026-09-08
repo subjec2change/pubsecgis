@@ -107,19 +107,18 @@ export default function BroadcastPage() {
   }, []);
 
   // Auto-enter fullscreen on mount (kiosk mode)
-  // TEMP: disabled during this session — re-enable for actual kiosk deployment
-  // useEffect(() => {
-  //   const enterFullscreen = () => {
-  //     const elem = document.documentElement;
-  //     if (elem.requestFullscreen) {
-  //       elem.requestFullscreen().catch((e) => {
-  //         console.warn('Fullscreen denied:', e);
-  //       });
-  //     }
-  //   };
-  //   enterFullscreen();
-  //   setTimeout(enterFullscreen, 500);
-  // }, []);
+  useEffect(() => {
+    const enterFullscreen = () => {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch((e) => {
+          console.warn('Fullscreen denied:', e);
+        });
+      }
+    };
+    enterFullscreen();
+    setTimeout(enterFullscreen, 500);
+  }, []);
 
   // Prevent browser navigation keys
   useEffect(() => {
