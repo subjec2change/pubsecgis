@@ -372,7 +372,7 @@ export default function OfficerMap({
       {/* Building/Floor Selection Panel */}
       {currentView === 'floorplan' && (
         <div style={{
-          position: 'absolute', top: '1rem', right: '1rem', zIndex: 1000,
+          position: 'absolute', bottom: '1rem', right: '1rem', zIndex: 1000,
           background: 'rgba(11, 18, 25, 0.95)', border: '1px solid var(--border)',
           padding: '0.75rem 1rem', borderRadius: '6px',
           fontFamily: "'IBM Plex Sans', sans-serif",
