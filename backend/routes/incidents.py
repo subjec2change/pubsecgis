@@ -32,7 +32,7 @@ async def list_incidents(
         shift=shift,
         include_archived=include_archived,
     )
-    return incidents
+    return [IncidentResponse.from_incident(i) for i in incidents]
 
 
 @router.post("", response_model=IncidentResponse, status_code=201)
@@ -49,11 +49,13 @@ async def create_incident_route(
         shift_id=incident_data.shift_id,
         description=incident_data.description or "",
         logged_by_id=current_user.id,
-        status=incident_data.status,
+        status=incident_data.status or "open",
         response_phase=incident_data.response_phase,
+        latitude=incident_data.latitude,
+        longitude=incident_data.longitude,
     )
     await db.refresh(incident)
-    return incident
+    return IncidentResponse.from_incident(incident)
 
 
 @router.put("/{incident_id}", response_model=IncidentResponse)
@@ -72,11 +74,13 @@ async def update_incident_route(
         description=update_data.description,
         status=update_data.status,
         response_phase=update_data.response_phase,
+        latitude=update_data.latitude,
+        longitude=update_data.longitude,
     )
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
     await db.refresh(incident)
-    return incident
+    return IncidentResponse.from_incident(incident)
 
 
 @router.delete("/{incident_id}", status_code=204)

@@ -12,6 +12,8 @@ interface IncidentFormProps {
   initialShift?: string;
   preSelectedBuilding?: string | null;
   preSelectedFloor?: string | null;
+  /** Optional map-click coordinates to include in the submission payload */
+  coordinates?: { latitude: number; longitude: number } | null;
 }
 
 export default function IncidentForm({
@@ -22,6 +24,7 @@ export default function IncidentForm({
   initialShift,
   preSelectedBuilding,
   preSelectedFloor,
+  coordinates,
 }: IncidentFormProps) {
   const [shift, setShift] = useState(initialShift || 'day');
   const [incidentType, setIncidentType] = useState<IncidentType>(
@@ -98,6 +101,7 @@ export default function IncidentForm({
           description: description || undefined,
           status: status,
           response_phase: responsePhase,
+          ...(coordinates && { latitude: coordinates.latitude, longitude: coordinates.longitude }),
         });
       } else {
         await createIncident({
@@ -107,6 +111,7 @@ export default function IncidentForm({
           description: description || undefined,
           status: status,
           response_phase: responsePhase || undefined,
+          ...(coordinates && { latitude: coordinates.latitude, longitude: coordinates.longitude }),
         });
       }
       onSubmit();
@@ -269,6 +274,16 @@ export default function IncidentForm({
               </div>
             )}
           </div>
+
+          {/* Map coordinates display */}
+          {coordinates && (
+            <div className="form-group">
+              <label htmlFor="map-coords">Map Coordinates</label>
+              <div style={{ padding: '8px 12px', background: '#f3f4f6', borderRadius: 4, fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                Lat: {coordinates.latitude.toFixed(4)} · Lng: {coordinates.longitude.toFixed(4)}
+              </div>
+            </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="description">Description</label>

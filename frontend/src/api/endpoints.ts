@@ -39,6 +39,8 @@ export async function createIncident(data: {
   description?: string;
   status?: string;
   response_phase?: string | undefined;
+  latitude?: number;
+  longitude?: number;
 }): Promise<Incident> {
   // Convert shift name ("day"/"evening"/"night") to today's shift ID
   let shiftId: number;
@@ -80,6 +82,8 @@ export async function createIncident(data: {
     description: data.description,
     status: data.status || 'open',
     ...(data.response_phase && { response_phase: data.response_phase }),
+    ...(data.latitude != null && { latitude: data.latitude }),
+    ...(data.longitude != null && { longitude: data.longitude }),
   });
   return res.data;
 }

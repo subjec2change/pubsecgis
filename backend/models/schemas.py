@@ -116,12 +116,28 @@ class IncidentCreate(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = "open"
     response_phase: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     @field_validator("incident_type")
     @classmethod
     def validate_incident_type(cls, v):
         if v not in VALID_INCIDENT_TYPES:
             raise ValueError(f"must be one of: {VALID_INCIDENT_TYPES}")
+        return v
+
+    @field_validator("latitude")
+    @classmethod
+    def validate_latitude(cls, v):
+        if v is not None and (v < -90 or v > 90):
+            raise ValueError("latitude must be between -90 and 90")
+        return v
+
+    @field_validator("longitude")
+    @classmethod
+    def validate_longitude(cls, v):
+        if v is not None and (v < -180 or v > 180):
+            raise ValueError("longitude must be between -180 and 180")
         return v
 
 
@@ -131,6 +147,22 @@ class IncidentUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = None
     response_phase: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+    @field_validator("latitude")
+    @classmethod
+    def validate_latitude(cls, v):
+        if v is not None and (v < -90 or v > 90):
+            raise ValueError("latitude must be between -90 and 90")
+        return v
+
+    @field_validator("longitude")
+    @classmethod
+    def validate_longitude(cls, v):
+        if v is not None and (v < -180 or v > 180):
+            raise ValueError("longitude must be between -180 and 180")
+        return v
 
 
 class IncidentResponse(BaseModel):
@@ -146,8 +178,45 @@ class IncidentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     archived_at: Optional[datetime] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_incident(cls, incident):
+        """Build an IncidentResponse from a SQLAlchemy Incident row."""
+        lat: float | None = None
+        lng: float | None = None
+        geom = getattr(incident, "geom", None)
+        if geom is not None:
+            try:
+                wkt_str = getattr(geom, "wkt", None)
+                if wkt_str:
+                    from shapely import wkt as shp_wkt
+                    from shapely.geometry import Point as ShpPoint
+                    point = shp_wkt.loads(wkt_str)
+                    if isinstance(point, ShpPoint) and not point.is_empty:
+                        lat = float(point.y)
+                        lng = float(point.x)
+            except Exception:
+                pass
+        return cls(
+            id=incident.id,
+            shift_id=incident.shift_id,
+            incident_type=incident.incident_type,
+            location_ref=incident.location_ref,
+            description=incident.description,
+            status=incident.status,
+            response_phase=incident.response_phase,
+            logged_by=incident.logged_by,
+            logged_by_user=incident.logged_by_user,
+            created_at=incident.created_at,
+            updated_at=incident.updated_at,
+            archived_at=incident.archived_at,
+            latitude=lat,
+            longitude=lng,
+        )
 
 
 class BroadcastIncidentResponse(BaseModel):

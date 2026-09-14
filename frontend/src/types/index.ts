@@ -34,6 +34,8 @@ export interface Incident {
   created_at: string;
   updated_at?: string;
   logged_by_user?: { username: string; display_name?: string };
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface BroadcastIncident {

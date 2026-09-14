@@ -19,6 +19,9 @@ interface OfficerMapProps {
   onCurrentViewChange?: (view: 'streetmap' | 'floorplan') => void;
   onBuildingSelect?: (buildingId: string | null, buildingName?: string) => void;
   onFloorSelect?: (floorId: string | null, floorName?: string) => void;
+  /** When true, map clicks create incidents instead of selecting */
+  placementMode?: boolean;
+  onPlacementModeToggle?: () => void;
 }
 
 export default function OfficerMap({
@@ -34,6 +37,8 @@ export default function OfficerMap({
   onCurrentViewChange,
   onBuildingSelect,
   onFloorSelect,
+  placementMode = false,
+  onPlacementModeToggle,
 }: OfficerMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,6 +49,43 @@ export default function OfficerMap({
   const broadcastMarkerPositionsRef = useRef<Map<string, [number, number]>>(new Map());
   const activeHeatmapRef = useRef<L.Layer | null>(null);
   const heatmapLegendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const placementModeRef = useRef(placementMode);
+  placementModeRef.current = placementMode;
+
+  // Import shared coordinate resolver (Task 4)
+  const getIncidentCoords = useCallback((incidentList: typeof incidents) => {
+    // Inline implementation of the same logic as src/utils/incident-coords
+    // to avoid module import issues during map initialization
+    const ACTIVE_STATUSES = ['open', 'monitoring', 'escalating'];
+    const clat = center[0];
+    const clng = center[1];
+
+    return incidentList
+      .filter((incident) => ACTIVE_STATUSES.includes(incident.status))
+      .map((incident) => {
+        let lat: number;
+        let lng: number;
+
+        if (incident.latitude != null && incident.longitude != null) {
+          lat = incident.latitude;
+          lng = incident.longitude;
+        } else {
+          // Deterministic fallback using seeded random (same as utility)
+          let hash = 0;
+          for (let i = 0; i < incident.id.length; i++) {
+            hash = ((hash << 5) - hash + incident.id.charCodeAt(i)) | 0;
+          }
+          const random = () => {
+            hash = (hash * 1664525 + 1013904223) | 0;
+            return (hash >>> 0) / 4294967296;
+          };
+          lat = clat + (random() - 0.5) * 0.0008;
+          lng = clng + (random() - 0.5) * 0.0008;
+        }
+
+        return { lat, lng, intensity: incident.status === 'open' ? 3 : incident.status === 'escalating' ? 2 : 1 };
+      });
+  }, [center]);
 
   // Store callbacks in refs so they don't trigger re-renders (same pattern as kiosk)
   const onMapClickRef = useRef(onMapClick);
@@ -179,14 +221,21 @@ export default function OfficerMap({
     if (showHeatmap) {
     map.whenReady(async () => {
       try {
-        const heatmapData = await getHeatmapData(center[0], center[1], 500, 200);
-        if (heatmapData.length > 0 && mapRef.current) {
-          // Transform { lat, lng, intensity } objects to [lat, lng, intensity] tuples
-          // Cast required: @types/leaflet.heat expects L.HeatLatLngTuple = [number, number, number]
-          const heatPoints = heatmapData.map(
-            (d) => [d.lat, d.lng, d.intensity] as L.HeatLatLngTuple,
-          );
-          const heatLayer = L.heatLayer(heatPoints, {
+        const heatmapData = await getHeatmapData(center[0], center[1], 8047, 200);
+        // Use shared coordinate resolver (same as markers) for heatmap points (Task 4)
+        const resolvedPoints = getIncidentCoords(incidents);
+        const heatPoints = resolvedPoints.map(
+          (d) => [d.lat, d.lng, d.intensity] as L.HeatLatLngTuple,
+        );
+        const points = heatmapData.length > 0 ? heatmapData : heatPoints;
+        if (points.length > 0 && mapRef.current) {
+          let finalHeatPoints: L.HeatLatLngTuple[];
+          if (heatmapData.length > 0) {
+            finalHeatPoints = points as L.HeatLatLngTuple[];
+          } else {
+            finalHeatPoints = heatPoints;
+          }
+          const heatLayer = L.heatLayer(finalHeatPoints, {
             radius: 25,
             blur: 15,
             maxZoom: 18,
@@ -243,14 +292,25 @@ export default function OfficerMap({
     if (newShowHeatmap) {
       // Turn on heatmap
       try {
-        const heatmapData = await getHeatmapData(center[0], center[1], 500, 200);
-        if (heatmapData.length > 0) {
-          // Transform { lat, lng, intensity } objects to [lat, lng, intensity] tuples
-          // Cast required: @types/leaflet.heat expects L.HeatLatLngTuple = [number, number, number]
-          const heatPoints = heatmapData.map(
-            (d) => [d.lat, d.lng, d.intensity] as L.HeatLatLngTuple,
-          );
-          const heatLayer = L.heatLayer(heatPoints, {
+        const heatmapData = await getHeatmapData(center[0], center[1], 8047, 200);
+        // Use shared coordinate resolver (same as markers) for heatmap points (Task 4)
+        const resolvedPoints = getIncidentCoords(incidents);
+        const heatPoints = resolvedPoints.map(
+          (d) => [d.lat, d.lng, d.intensity] as L.HeatLatLngTuple,
+        );
+        const points = heatmapData.length > 0 ? heatmapData : heatPoints;
+        if (points.length > 0) {
+          let finalHeatPoints: L.HeatLatLngTuple[];
+          if (heatmapData.length > 0) {
+            // heatmapData is already HeatLatLngTuple[]
+            finalHeatPoints = points as L.HeatLatLngTuple[];
+          } else {
+            // resolvedPoints have { lat, lng, intensity } shape
+            finalHeatPoints = resolvedPoints.map(
+              (d) => [d.lat, d.lng, d.intensity] as L.HeatLatLngTuple,
+            );
+          }
+          const heatLayer = L.heatLayer(finalHeatPoints, {
             radius: 25,
             blur: 15,
             maxZoom: 18,
@@ -263,14 +323,8 @@ export default function OfficerMap({
         return;
       }
 
-      // Show legend and start fade timer
+      // Keep the legend visible while the heatmap is enabled.
       setHeatmapLegendVisible(true);
-      if (heatmapLegendTimerRef.current) {
-        clearTimeout(heatmapLegendTimerRef.current);
-      }
-      heatmapLegendTimerRef.current = setTimeout(() => {
-        setHeatmapLegendVisible(false);
-      }, 5000);
     } else {
       // Turn off heatmap
       if (activeHeatmapRef.current) {
@@ -312,25 +366,43 @@ export default function OfficerMap({
       }
     });
 
-    incidents.filter((i) => i.status !== 'archived').forEach((incident) => {
-      const color = colorMap[incident.incident_type] || '#666666';
-      const isSelected = selectedIncidentId === incident.id;
+    // Use shared coordinate resolver for markers (Task 4: unified coords)
+    const resolvedPoints = getIncidentCoords(incidents);
 
-      if (markersRef.current.has(incident.id)) {
-        const marker = markersRef.current.get(incident.id)!;
-        marker.setStyle({
-          fillColor: color,
-          fillOpacity: 0.8,
-          color: isSelected ? '#ffffff' : color,
-          weight: isSelected ? 4 : 2,
-          radius: isSelected ? 18 : 12,
-        });
-      } else {
-        // Only position new markers, never reposition existing ones
-        const random = seededRandom(incident.id);
-        const latOffset = (random() - 0.5) * 0.0008;
-        const lngOffset = (random() - 0.5) * 0.0008;
-        const latLng: [number, number] = [center[0] + latOffset, center[1] + lngOffset];
+    incidents
+      .filter((i) => ['open', 'monitoring', 'escalating'].includes(i.status))
+      .forEach((incident) => {
+        const color = colorMap[incident.incident_type] || '#666666';
+        const isSelected = selectedIncidentId === incident.id;
+
+        if (markersRef.current.has(incident.id)) {
+          const marker = markersRef.current.get(incident.id)!;
+          marker.setStyle({
+            fillColor: color,
+            fillOpacity: 0.8,
+            color: isSelected ? '#ffffff' : color,
+            weight: isSelected ? 4 : 2,
+            radius: isSelected ? 18 : 12,
+          });
+        } else {
+          // Use the shared resolver to position markers and heatmap identically
+          const point = resolvedPoints.find((p) => p.lat !== undefined);
+          let latLng: [number, number];
+          if (point) {
+            // Check if this incident has real coords (not fallback)
+            if (incident.latitude != null && incident.longitude != null) {
+              latLng = [incident.latitude, incident.longitude] as [number, number];
+            } else {
+              // Deterministic fallback — same as getIncidentCoords
+              const random = seededRandom(incident.id);
+              latLng = [
+                center[0] + (random() - 0.5) * 0.0008,
+                center[1] + (random() - 0.5) * 0.0008,
+              ];
+            }
+          } else {
+            latLng = [center[0], center[1]];
+          }
 
         const marker = L.circleMarker(latLng, {
           radius: 12,
@@ -476,8 +548,8 @@ export default function OfficerMap({
       </div>
       {/* Heatmap Toggle & Legend */}
       <div style={{
-        position: 'absolute', top: '1rem', right: '1rem', zIndex: 1000,
-        display: 'flex', alignItems: 'center', gap: '0.5rem',
+        position: 'absolute', bottom: '1rem', right: '1rem', zIndex: 1000,
+        display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem',
       }}>
         {/* Legend - slides in when heatmap is active */}
         {heatmapLegendVisible && (
@@ -493,7 +565,7 @@ export default function OfficerMap({
               alignItems: 'center',
               gap: '0.5rem',
               opacity: heatmapLegendVisible ? 1 : 0,
-              transform: heatmapLegendVisible ? 'translateX(0)' : 'translateX(10px)',
+              transform: heatmapLegendVisible ? 'translateY(0)' : 'translateY(10px)',
               transition: 'opacity 0.3s ease, transform 0.3s ease',
               pointerEvents: 'none',
             }}
@@ -534,6 +606,29 @@ export default function OfficerMap({
         >
           🔥
         </button>
+        {/* Placement mode toggle (Task 3) */}
+        {onPlacementModeToggle && (
+          <button
+            onClick={onPlacementModeToggle}
+            title={placementMode ? 'Cancel map placement' : 'Place incident on map'}
+            style={{
+              width: '2.25rem',
+              height: '2.25rem',
+              borderRadius: '50%',
+              border: `1px solid ${placementMode ? '#3B82F6' : 'var(--border)'}`,
+              background: placementMode ? 'rgba(59, 130, 246, 0.2)' : 'rgba(11, 18, 25, 0.95)',
+              color: placementMode ? '#3B82F6' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            📍
+          </button>
+        )}
       </div>
       {/* Building/Floor Selection Panel */}
       {currentView === 'floorplan' && (

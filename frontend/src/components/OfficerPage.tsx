@@ -47,6 +47,10 @@ export default function OfficerPage() {
   const [selectedBuildingName, setSelectedBuildingName] = useState<string | null>(null);
   const [selectedFloorName, setSelectedFloorName] = useState<string | null>(null);
 
+  // Map placement state (Task 3)
+  const [placementMode, setPlacementMode] = useState(false);
+  const [selectedCoords, setSelectedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+
   // Filters
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -116,17 +120,34 @@ export default function OfficerPage() {
     loadIncidents();
     setFormOpen(false);
     setEditingIncident(null);
+    setPlacementMode(false);
+    setSelectedCoords(null);
   };
 
   const handleIncidentUpdated = () => {
     loadIncidents();
     setFormOpen(false);
     setEditingIncident(null);
+    setPlacementMode(false);
+    setSelectedCoords(null);
   };
 
-  const handleMapClick = () => {
-    setEditingIncident(null);
+  // Handle map clicks for placement (Task 3)
+  const handleMapClick = (lat?: number, lng?: number) => {
+    if (lat != null && lng != null && placementMode) {
+      // User clicked the map while in placement mode
+      setSelectedCoords({ latitude: lat, longitude: lng });
+      setFormOpen(true);
+      setEditingIncident(null);
+    }
+  };
+
+  // Toggle placement mode
+  const handleSetLocationOnMap = () => {
+    setPlacementMode(true);
+    setSelectedCoords(null);
     setFormOpen(true);
+    setEditingIncident(null);
   };
 
   const handleCurrentViewChange = (view: 'streetmap' | 'floorplan') => {
@@ -226,7 +247,7 @@ export default function OfficerPage() {
           colorConfig={colorConfig}
           selectedIncidentId={selectedIncidentId}
           onIncidentSelect={handleIncidentSelect}
-          onMapClick={handleMapClick}
+          onMapClick={handleSetLocationOnMap}
           onIncidentCreated={handleIncidentCreated}
           onIncidentUpdated={handleIncidentUpdated}
           onIncidentEdit={handleIncidentEdit}
@@ -253,6 +274,8 @@ export default function OfficerPage() {
           onCurrentViewChange={handleCurrentViewChange}
           onBuildingSelect={handleBuildingSelect}
           onFloorSelect={handleFloorSelect}
+          placementMode={placementMode}
+          onPlacementModeToggle={() => setPlacementMode((m) => !m)}
         />
 
         <div className="map-overlay">
@@ -273,12 +296,13 @@ export default function OfficerPage() {
       {formOpen && (
         <IncidentForm
           isOpen={formOpen}
-          onClose={() => { setFormOpen(false); setEditingIncident(null); }}
+          onClose={() => { setFormOpen(false); setEditingIncident(null); setPlacementMode(false); setSelectedCoords(null); }}
           onSubmit={editingIncident ? handleIncidentUpdated : handleIncidentCreated}
           editIncident={editingIncident}
           initialShift={filterShift}
           preSelectedBuilding={selectedBuildingName}
           preSelectedFloor={selectedFloorName}
+          coordinates={selectedCoords}
         />
       )}
     </div>
