@@ -1,28 +1,33 @@
-from sqlalchemy import select, func
+from sqlalchemy import select, func, cast
+from sqlalchemy.dialects.postgresql import ENUM as PGEnum
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 from models.database import Incident, User, Shift, IncidentStatus
+
+
+def _cast_to_status(val):
+    """Cast a plain Python string to the PostgreSQL incident_status enum type."""
+    return cast(val, PGEnum("incident_status", name="incident_status", create_type=False))
 
 
 async def archive_expired_incidents(db: AsyncSession) -> int:
     """Auto-archive incidents that have been in 'resolved' status for 24+ hours.
     Returns the number of incidents archived."""
-    from models.database import IncidentStatus
     cutoff = func.now() - timedelta(hours=24)
     result = await db.execute(
         select(Incident).where(
-            Incident.status == IncidentStatus.RESOLVED.value,
+            Incident.status == _cast_to_status(IncidentStatus.RESOLVED.value),
             Incident.updated_at < cutoff,
             Incident.archived_at.is_(None),
         )
     )
     to_archive = result.scalars().all()
     for inc in to_archive:
-        inc.status = IncidentStatus.ARCHIVED.value
-        inc.archived_at = func.now()
+        inc.status = _cast_to_status(IncidentStatus.ARCHIVED.value)
+        inc.archived_at = datetime.now(timezone.utc)
     if to_archive:
         await db.commit()
     return len(to_archive)
@@ -38,7 +43,12 @@ async def get_incidents(
     include_archived: bool = False,
 ) -> list[Incident]:
     # Auto-archive any expired resolved incidents first
-    await archive_expired_incidents(db)
+    try:
+        await archive_expired_incidents(db)
+    except Exception:
+        # Silently skip — the background auto-archive loop handles retries.
+        # Do NOT let auto-archive failures crash the route handler.
+        pass
 
     stmt = (
         select(Incident)
@@ -47,10 +57,10 @@ async def get_incidents(
 
     # Exclude archived by default
     if not include_archived:
-        stmt = stmt.where(Incident.status != IncidentStatus.ARCHIVED.value)
+        stmt = stmt.where(Incident.status != _cast_to_status(IncidentStatus.ARCHIVED.value))
 
     if status_filter:
-        stmt = stmt.where(Incident.status == status_filter)
+        stmt = stmt.where(Incident.status == _cast_to_status(status_filter))
     if incident_type:
         stmt = stmt.where(Incident.incident_type == incident_type)
     if location:
@@ -85,7 +95,7 @@ async def create_incident(
         shift_id=shift_id,
         description=description or "",
         logged_by=logged_by_id,
-        status=status,
+        status=_cast_to_status(status),
         response_phase=response_phase or None,
     )
     db.add(incident)
@@ -117,7 +127,7 @@ async def update_incident(
     if status:
         valid_statuses = ["open", "resolved", "monitoring", "archived", "escalating"]
         if status in valid_statuses:
-            incident.status = status
+            incident.status = _cast_to_status(status)
     if response_phase is not None:
         incident.response_phase = response_phase or None
 

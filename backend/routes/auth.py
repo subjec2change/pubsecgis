@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,6 +8,16 @@ from models.schemas import UserCreate, UserResponse
 from dependencies import create_access_token, get_current_user
 
 router = APIRouter()
+
+
+def _hash_password(password: str) -> str:
+    """Hash a password with bcrypt."""
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def _verify_password(password: str, hash_str: str) -> bool:
+    """Verify a password against a bcrypt hash."""
+    return bcrypt.checkpw(password.encode("utf-8"), hash_str.encode("utf-8"))
 
 
 @router.post("/login")
@@ -24,7 +35,13 @@ async def login(credentials: dict, db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
 
-    if user is None:
+    if user is None or user.password_hash is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+        )
+
+    if not _verify_password(password, str(user.password_hash)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",

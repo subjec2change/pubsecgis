@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: pusecgis-db
+    ports:
+      - "15432:5432"
+    environment:
+      POSTGRES_USER: pusecgis
+      POSTGRES_PASSWORD: pusecgis_dev
+      POSTGRES_DB: pusecgis_dev
+    volumes:
+      - pusecgis-db-data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pusecgis -d pusecgis_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pusecgis-db-data:

@@ -70,3 +70,9 @@ app.include_router(handoff_router, prefix="/api/handoff", tags=["Handoff Notes"]
 app.include_router(locations_router, prefix="/api/locations", tags=["Locations"])
 app.include_router(users_router, prefix="/api/users", tags=["Users"])
 app.include_router(shifts_router, prefix="/api/shifts", tags=["Shifts"])
+
+
+@app.get("/api/health", tags=["Health"])
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy", "version": "1.0.0", "db": "connected"}

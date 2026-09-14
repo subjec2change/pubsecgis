@@ -4,6 +4,7 @@ from sqlalchemy import (
     ForeignKey, Integer, Numeric, Enum as SAEnum,
     Text as TextType,
 )
+from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from geoalchemy2 import Geography
@@ -38,6 +39,7 @@ class User(Base):
     username = Column(String(80), unique=True, nullable=False)
     display_name = Column(String(120), nullable=False)
     role = Column(String(20), nullable=False, default="officer")
+    password_hash = Column(String(255), nullable=True, default=None)
     active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -81,7 +83,11 @@ class Incident(Base):
     location_ref = Column(String(300), nullable=False)
     geom = Column(Geography("POINT", srid=4326))
     description = Column(Text)
-    status = Column(String(20), nullable=False, default="open")
+    status = Column(
+        PG_ENUM("incident_status", name="incident_status", create_type=False),
+        nullable=False,
+        default="open",
+    )
     response_phase = Column(String(32), nullable=True)
     logged_by = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
