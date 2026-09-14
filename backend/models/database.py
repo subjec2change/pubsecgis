@@ -4,7 +4,6 @@ from sqlalchemy import (
     ForeignKey, Integer, Numeric, Enum as SAEnum,
     Text as TextType,
 )
-from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from geoalchemy2 import Geography
@@ -31,6 +30,7 @@ class IncidentStatus(str, enum.Enum):
     RESOLVED = "resolved"
     MONITORING = "monitoring"
     ARCHIVED = "archived"
+    ESCALATING = "escalating"
 
 
 class User(Base):
@@ -84,7 +84,8 @@ class Incident(Base):
     geom = Column(Geography("POINT", srid=4326))
     description = Column(Text)
     status = Column(
-        PG_ENUM("incident_status", name="incident_status", create_type=False),
+        SAEnum(IncidentStatus, name="incident_status", create_type=False,
+               values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default="open",
     )

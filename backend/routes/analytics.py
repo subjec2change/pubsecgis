@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import select, func
+from sqlalchemy import select, func, cast
 from sqlalchemy.ext.asyncio import AsyncSession
+from geoalchemy2 import Geography, Geometry
 
 from models.database import get_session, Incident
 from models.schemas import VALID_INCIDENT_TYPES
@@ -44,18 +45,17 @@ async def heatmap(
     stmt = (
         select(
             Incident,
-            func.st_y(Incident.geom).label("lat"),
-            func.st_x(Incident.geom).label("lng"),
+            func.st_y(cast(Incident.geom, Geometry(geometry_type="POINT", srid=4326))).label("lat"),
+            func.st_x(cast(Incident.geom, Geometry(geometry_type="POINT", srid=4326))).label("lng"),
         )
         .where(
             func.st_dwithin(
                 Incident.geom,
-                func.st_makeline(
-                    func.st_makepoint(lng, lat),
-                    func.st_makepoint(lng, lat),
+                cast(
+                    func.st_setsrid(func.st_makepoint(lng, lat), 4326),
+                    Geography(geometry_type="POINT", srid=4326),
                 ),
                 radius,
-                True,  # units in metres because geom is GEOGRAPHY
             ),
             Incident.status != "archived",
         )
