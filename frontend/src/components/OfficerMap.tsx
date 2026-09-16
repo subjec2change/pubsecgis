@@ -5,6 +5,8 @@ import 'leaflet.heat';
 import type { Incident, BroadcastIncident, ColorMapping } from '../types';
 import { DEFAULT_COLOR_MAP, INCIDENT_TYPE_LABELS } from '../types';
 import { getHeatmapData } from '../api/endpoints';
+import FloorplanSelector from './FloorplanSelector';
+import floorplans from '../data/floorplans.json';
 
 interface OfficerMapProps {
   incidents: Incident[];
@@ -45,6 +47,7 @@ export default function OfficerMap({
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map());
   const broadcastMarkersRef = useRef<Map<string, L.CircleMarker>>(new Map());
   const floorplanLayersRef = useRef<L.LayerGroup | null>(null);
+  const floorplanImageRef = useRef<L.ImageOverlay | null>(null);
   const streetLayersRef = useRef<L.Layer | null>(null);
   const broadcastMarkerPositionsRef = useRef<Map<string, [number, number]>>(new Map());
   const activeHeatmapRef = useRef<L.Layer | null>(null);
