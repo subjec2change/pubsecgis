@@ -183,6 +183,62 @@ export default function OfficerMap({
     }
   }, [currentView]);
 
+  // Handle floor selection: add/remove image overlay + fitBounds
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (currentView !== 'floorplan' || !selectedFloorId) {
+      // Clear any existing overlay and reset view
+      if (floorplanImageRef.current) {
+        if (floorplanLayersRef.current) {
+          floorplanLayersRef.current.removeLayer(floorplanImageRef.current);
+        }
+        map.removeLayer(floorplanImageRef.current);
+        floorplanImageRef.current = null;
+      }
+      if (selectedFloorId && !selectedBuildingId) {
+        // Floor was cleared
+        map.flyTo(center, zoom, { animate: true, duration: 0.5 });
+      }
+      return;
+    }
+
+    // Find the selected floor's data
+    let floorData: { image: string; bounds: number[][] } | undefined;
+    for (const building of floorplans) {
+      if (selectedBuildingId && building.buildingId === selectedBuildingId) {
+        floorData = building.floors.find((f) => f.id === selectedFloorId);
+        break;
+      }
+    }
+    if (!floorData || !floorData.image) return;
+
+    // Remove previous overlay if any
+    if (floorplanImageRef.current) {
+      if (floorplanLayersRef.current) {
+        floorplanLayersRef.current.removeLayer(floorplanImageRef.current);
+      }
+      map.removeLayer(floorplanImageRef.current);
+      floorplanImageRef.current = null;
+    }
+
+    // Convert bounds from [lat, lng] to Leaflet format
+    const leafletBounds: [L.LatLngTuple, L.LatLngTuple] = [
+      [floorData.bounds[0][0], floorData.bounds[0][1]],
+      [floorData.bounds[1][0], floorData.bounds[1][1]],
+    ];
+
+    // Add image overlay
+    const imageOverlay = L.imageOverlay(floorData.image, leafletBounds, {
+      opacity: 0.85,
+    }).addTo(map);
+    floorplanImageRef.current = imageOverlay;
+
+    // Zoom to floor bounds
+    map.flyToBounds(leafletBounds, { animate: true, duration: 0.8, padding: [40, 40] });
+  }, [selectedFloorId, selectedBuildingId, currentView, center, zoom]);
+
   const colorMap = useMemo(() => {
     const map: Record<string, string> = { ...DEFAULT_COLOR_MAP };
     colorConfig.forEach((c) => {
@@ -633,94 +689,16 @@ export default function OfficerMap({
           </button>
         )}
       </div>
-      {/* Building/Floor Selection Panel */}
+      {/* Floorplan Selection Panel (Task 3) */}
       {currentView === 'floorplan' && (
         <div style={{
-          position: 'absolute', bottom: '1rem', right: '1rem', zIndex: 1000,
+          position: 'absolute', top: '1rem', right: '1rem', zIndex: 1000,
           background: 'rgba(11, 18, 25, 0.95)', border: '1px solid var(--border)',
-          padding: '0.75rem 1rem', borderRadius: '6px',
-          fontFamily: "'IBM Plex Sans', sans-serif",
-          maxWidth: '280px',
+          padding: '0.5rem', borderRadius: '6px',
         }}>
-          <div style={{
-            fontWeight: 600,
-            color: 'var(--text-bright)',
-            marginBottom: '0.5rem',
-            fontSize: '0.75rem',
-            letterSpacing: '0.1em',
-          }}>
-            CURRENT LOCATION
-          </div>
-          {/* Building selector */}
-          <div style={{
-            background: selectedBuildingId ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
-            border: selectedBuildingId ? '1px solid #3B82F6' : '1px solid var(--border)',
-            borderRadius: '4px',
-            padding: '0.5rem',
-            marginBottom: '0.5rem',
-          }}>
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-              BUILDING
-            </div>
-            <div style={{
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              color: selectedBuildingId ? '#ffffff' : 'var(--text-secondary)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}>
-              {floorplanBuildings.find((b) => b.id === selectedBuildingId)?.name || 'None selected'}
-            </div>
-          </div>
-          {/* Floor selector */}
-          {selectedBuildingId && (
-            <div style={{
-              background: selectedFloorId ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
-              border: selectedFloorId ? '1px solid #3B82F6' : '1px solid var(--border)',
-              borderRadius: '4px',
-              padding: '0.5rem',
-            }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                FLOOR
-              </div>
-              <div style={{
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                color: selectedFloorId ? '#ffffff' : 'var(--text-secondary)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}>
-                {floorplanBuildings.find((b) => b.id === selectedBuildingId)?.floors?.find((f) => f.id === selectedFloorId)?.name || 'None selected'}
-              </div>
-            </div>
-          )}
-          {/* Reset button */}
-          {(selectedBuildingId || selectedFloorId) && (
-            <button
-              onClick={() => {
-                setSelectedBuildingId(null);
-                setSelectedFloorId(null);
-                onBuildingSelect?.(null);
-                onFloorSelect?.(null);
-              }}
-              style={{
-                width: '100%',
-                marginTop: '0.5rem',
-                padding: '0.4rem',
-                background: 'transparent',
-                border: '1px solid var(--border)',
-                borderRadius: '4px',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                fontSize: '0.7rem',
-                fontFamily: "'IBM Plex Sans', sans-serif",
-              }}
-            >
-              Clear Selection
-            </button>
-          )}
+          <FloorplanSelector onFloorSelect={(floorId, floorName) => {
+            onFloorSelectRef.current?.(floorId || null, floorName || '');
+          }} />
         </div>
       )}
       {/* Map Legend */}

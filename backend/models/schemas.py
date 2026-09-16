@@ -186,21 +186,37 @@ class IncidentResponse(BaseModel):
     @classmethod
     def from_incident(cls, incident):
         """Build an IncidentResponse from a SQLAlchemy Incident row."""
+        from shapely.geometry.base import BaseGeometry
+        
         lat: float | None = None
         lng: float | None = None
         geom = getattr(incident, "geom", None)
+        
         if geom is not None:
-            try:
-                wkt_str = getattr(geom, "wkt", None)
-                if wkt_str:
-                    from shapely import wkt as shp_wkt
-                    from shapely.geometry import Point as ShpPoint
-                    point = shp_wkt.loads(wkt_str)
-                    if isinstance(point, ShpPoint) and not point.is_empty:
-                        lat = float(point.y)
-                        lng = float(point.x)
-            except Exception:
-                pass
+            point: BaseGeometry | None = None
+            
+            # GeoAlchemy2 WKBElement (from PostGIS Geography/Geometry columns)
+            if hasattr(geom, 'data') and isinstance(geom.data, bytes):
+                from shapely import wkb
+                point = wkb.loads(geom.data)
+            
+            # WKT text attribute (e.g. WKTElement)
+            elif hasattr(geom, 'wkt') and geom.wkt:
+                from shapely import wkt as shp_wkt
+                point = shp_wkt.loads(geom.wkt)
+            
+            # Raw hex EWKB string
+            elif isinstance(geom, str) and len(geom) >= 46 and geom.lower().startswith('01'):
+                from shapely import wkb
+                try:
+                    point = wkb.loads(bytes.fromhex(geom))
+                except Exception:
+                    point = None
+            
+            if point and not point.is_empty:
+                lat = float(point.y)
+                lng = float(point.x)
+        
         return cls(
             id=incident.id,
             shift_id=incident.shift_id,

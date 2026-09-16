@@ -1,6 +1,6 @@
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 
@@ -82,13 +82,12 @@ async def get_incidents(
     try:
         await archive_expired_incidents(db)
     except Exception:
-        # Silently skip — the background auto-archive loop handles retries.
-        # Do NOT let auto-archive failures crash the route handler.
         pass
 
+    # Use selectinload on logged_by_user so the relationship populates
     stmt = (
         select(Incident)
-        .options(joinedload(Incident.logged_by_user))
+        .options(selectinload(Incident.logged_by_user))
     )
 
     # Exclude archived by default
@@ -165,7 +164,11 @@ async def update_incident(
 ) -> Optional[Incident]:
     from geoalchemy2 import WKTElement
 
-    result = await db.execute(select(Incident).where(Incident.id == incident_id).options(joinedload(Incident.logged_by_user)))
+    result = await db.execute(
+        select(Incident)
+        .where(Incident.id == incident_id)
+        .options(selectinload(Incident.logged_by_user))
+    )
     incident = result.scalar_one_or_none()
     if not incident:
         return None
