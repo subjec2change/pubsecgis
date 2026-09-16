@@ -1,0 +1,140 @@
+[
+  {
+    "building": "Main Building",
+    "buildingId": "main-building",
+    "floors": [
+      {
+        "id": "a1",
+        "name": "Floor 1 - Lobby",
+        "image": "/floorplans/main-floor1.png",
+        "bounds": [
+          [38.6273, -90.2425],
+          [38.6271, -90.2415]
+        ]
+      },
+      {
+        "id": "a2",
+        "name": "Floor 2 - Offices",
+        "image": "/floorplans/main-floor2.png",
+        "bounds": [
+          [38.6273, -90.2425],
+          [38.6271, -90.2415]
+        ]
+      },
+      {
+        "id": "a3",
+        "name": "Floor 3 - Medical",
+        "image": "/floorplans/main-floor3.png",
+        "bounds": [
+          [38.6273, -90.2425],
+          [38.6271, -90.2415]
+        ]
+      }
+    ]
+  },
+  {
+    "building": "Main Wing (B Floor)",
+    "buildingId": "main-east",
+    "floors": [
+      {
+        "id": "b1",
+        "name": "Floor 1 - Emergency",
+        "image": "/floorplans/mainb-floor1.png",
+        "bounds": [
+          [38.6270, -90.2422],
+          [38.6268, -90.2412]
+        ]
+      },
+      {
+        "id": "b2",
+        "name": "Floor 2 - Surgery",
+        "image": "/floorplans/mainb-floor2.png",
+        "bounds": [
+          [38.6270, -90.2422],
+          [38.6268, -90.2412]
+        ]
+      }
+    ]
+  },
+  {
+    "building": "Children's Hospital",
+    "buildingId": "childrens-hospital",
+    "floors": [
+      {
+        "id": "c1",
+        "name": "Floor 1 - ER",
+        "image": "/floorplans/childrens-floor1.png",
+        "bounds": [
+          [38.6265, -90.2420],
+          [38.6260, -90.2410]
+        ]
+      },
+      {
+        "id": "c2",
+        "name": "Floor 2 - Inpatient",
+        "image": "/floorplans/childrens-floor2.png",
+        "bounds": [
+          [38.6265, -90.2420],
+          [38.6260, -90.2410]
+        ]
+      },
+      {
+        "id": "c3",
+        "name": "Floor 3 - ICN",
+        "image": "/floorplans/childrens-floor3.png",
+        "bounds": [
+          [38.6265, -90.2420],
+          [38.6260, -90.2410]
+        ]
+      }
+    ]
+  },
+  {
+    "building": "Adult ED",
+    "buildingId": "adult-ed",
+    "floors": [
+      {
+        "id": "d1",
+        "name": "Floor 1 - Triage",
+        "image": "/floorplans/adulted-floor1.png",
+        "bounds": [
+          [38.6268, -90.2412],
+          [38.6264, -90.2405]
+        ]
+      },
+      {
+        "id": "d2",
+        "name": "Floor 2 - Consults",
+        "image": "/floorplans/adulted-floor2.png",
+        "bounds": [
+          [38.6268, -90.2412],
+          [38.6264, -90.2405]
+        ]
+      }
+    ]
+  },
+  {
+    "building": "Parking Garage",
+    "buildingId": "parking-garage",
+    "floors": [
+      {
+        "id": "g1",
+        "name": "Level -1",
+        "image": "/floorplans/garage-level1.png",
+        "bounds": [
+          [38.6275, -90.2408],
+          [38.6272, -90.2400]
+        ]
+      },
+      {
+        "id": "g2",
+        "name": "Level -2",
+        "image": "/floorplans/garage-level2.png",
+        "bounds": [
+          [38.6275, -90.2408],
+          [38.6272, -90.2400]
+        ]
+      }
+    ]
+  }
+]
