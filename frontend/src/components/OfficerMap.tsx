@@ -262,21 +262,31 @@ export default function OfficerMap({
 
     // Add image overlay. L.imageOverlay only supports axis-aligned rects, so
     // we CSS-rotate the underlying <img> about its centre to match the
-    // surveyed (slightly rotated) building footprints. Leaflet overwrites
-    // the img's style on every zoom/pan reposition, so re-apply on zoomend,
-    // moveend and resize — the rotation is screen-anchored and stays correct.
+    // surveyed (slightly rotated) building footprints.
+    //
+    // Leaflet internals matter here:
+    //  - overlay.getElement() IS the <img> (no wrapper div) in Leaflet 1.9
+    //  - _reset() writes translate3d+scale into img.style.transform on every
+    //    zoom/pan, so we must APPEND rotate() to Leaflet's transform, never
+    //    replace it, and re-apply after each reposition.
     const imageOverlay = L.imageOverlay(floorData.image, leafletBounds, {
-      opacity: 0.85,
+      opacity: 1,
       interactive: false,
     }).addTo(map);
     floorplanImageRef.current = imageOverlay;
 
     const applyRotation = () => {
-      const img = imageOverlay.getElement()?.querySelector('img');
-      if (img) {
-        img.style.transformOrigin = 'center center';
-        img.style.transform = `rotate(${FLOORPLAN_ROTATION_DEG}deg)`;
-      }
+      const el = imageOverlay.getElement() as HTMLElement | undefined;
+      if (!el) return;
+      const img = el.tagName === 'IMG' ? (el as HTMLImageElement) : el.querySelector('img');
+      if (!img) return;
+      img.style.transformOrigin = 'center center';
+      // Strip any rotate() we added before, keep Leaflet's translate/scale, append ours
+      const base = (img.style.transform || '')
+        .replace(/rotate\([^)]*\)/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      img.style.transform = `${base} rotate(${FLOORPLAN_ROTATION_DEG}deg)`.trim();
     };
     applyRotation();
     map.on('zoomend moveend resize', applyRotation);
