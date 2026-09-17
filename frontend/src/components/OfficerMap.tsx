@@ -55,6 +55,16 @@ export default function OfficerMap({
   const placementModeRef = useRef(placementMode);
   placementModeRef.current = placementMode;
 
+  // Latest center/zoom props without re-triggering the overlay effect
+  const centerRef = useRef<[number, number]>(center);
+  centerRef.current = center;
+  const zoomRef = useRef<number>(zoom);
+  zoomRef.current = zoom;
+  // Last floor we auto-fit to — prevents re-flying (and undoing user zoom)
+  // when the effect re-runs for unrelated re-renders.
+  const lastFlownFloorRef = useRef<string | null>(null);
+  const lastFlownBuildingRef = useRef<string | null>(null);
+
   // Import shared coordinate resolver (Task 4)
   const getIncidentCoords = useCallback((incidentList: typeof incidents) => {
     // Inline implementation of the same logic as src/utils/incident-coords
@@ -199,8 +209,20 @@ export default function OfficerMap({
       }
       if (selectedFloorId && !selectedBuildingId) {
         // Floor was cleared
-        map.flyTo(center, zoom, { animate: true, duration: 0.5 });
+        map.flyTo(centerRef.current, zoomRef.current, { animate: true, duration: 0.5 });
       }
+      lastFlownFloorRef.current = null;
+      return;
+    }
+
+    // Skip re-adding overlay / re-fitting if this exact floor is already shown.
+    // (The default `center` prop is a fresh array each render, so any parent
+    // re-render used to re-fire flyToBounds and yank the user's zoom back out.)
+    if (
+      floorplanImageRef.current &&
+      lastFlownFloorRef.current === selectedFloorId &&
+      selectedBuildingId === lastFlownBuildingRef.current
+    ) {
       return;
     }
 
@@ -235,9 +257,11 @@ export default function OfficerMap({
     }).addTo(map);
     floorplanImageRef.current = imageOverlay;
 
-    // Zoom to floor bounds
+    // Zoom to floor bounds — only when the floor actually changed
+    lastFlownFloorRef.current = selectedFloorId;
+    lastFlownBuildingRef.current = selectedBuildingId;
     map.flyToBounds(leafletBounds, { animate: true, duration: 0.8, padding: [40, 40] });
-  }, [selectedFloorId, selectedBuildingId, currentView, center, zoom]);
+  }, [selectedFloorId, selectedBuildingId, currentView]);
 
   const colorMap = useMemo(() => {
     const map: Record<string, string> = { ...DEFAULT_COLOR_MAP };
