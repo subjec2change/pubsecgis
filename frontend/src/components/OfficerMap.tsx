@@ -261,10 +261,13 @@ export default function OfficerMap({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const map = L.map(containerRef.current).setView(center, zoom);
+    // maxZoom 22 lets users zoom past the OSM tile ceiling to read floorplan
+    // detail; maxNativeZoom 19 below keeps tile requests at OSM's real max.
+    const map = L.map(containerRef.current, { maxZoom: 22 }).setView(center, zoom);
     const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19,
+      maxZoom: 22,
+      maxNativeZoom: 19,
     }).addTo(map);
     streetLayersRef.current = tileLayer;
     mapRef.current = map;
