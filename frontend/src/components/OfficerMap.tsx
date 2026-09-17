@@ -697,6 +697,14 @@ export default function OfficerMap({
           padding: '0.5rem', borderRadius: '6px',
         }}>
           <FloorplanSelector onFloorSelect={(floorId, floorName) => {
+            if (!floorId) {
+              setSelectedBuildingId(null);
+              setSelectedFloorId(null);
+            } else {
+              const building = floorplans.find((b) => b.floors.some((f) => f.id === floorId));
+              setSelectedBuildingId(building?.buildingId ?? null);
+              setSelectedFloorId(floorId);
+            }
             onFloorSelectRef.current?.(floorId || null, floorName || '');
           }} />
         </div>

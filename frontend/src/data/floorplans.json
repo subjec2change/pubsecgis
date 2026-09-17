@@ -1,140 +1,46 @@
 [
   {
-    "building": "Main Building",
-    "buildingId": "main-building",
+    "building": "Parkview Tower (North Campus)",
+    "buildingId": "parkview-tower",
     "floors": [
-      {
-        "id": "a1",
-        "name": "Floor 1 - Lobby",
-        "image": "/floorplans/main-floor1.png",
-        "bounds": [
-          [38.6273, -90.2425],
-          [38.6271, -90.2415]
-        ]
-      },
-      {
-        "id": "a2",
-        "name": "Floor 2 - Offices",
-        "image": "/floorplans/main-floor2.png",
-        "bounds": [
-          [38.6273, -90.2425],
-          [38.6271, -90.2415]
-        ]
-      },
-      {
-        "id": "a3",
-        "name": "Floor 3 - Medical",
-        "image": "/floorplans/main-floor3.png",
-        "bounds": [
-          [38.6273, -90.2425],
-          [38.6271, -90.2415]
-        ]
-      }
+      { "id": "pv-ll2", "name": "Lower Level 2", "image": "/floorplans/parkview-ll2.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-ll1", "name": "Lower Level 1", "image": "/floorplans/parkview-ll1.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l1", "name": "Level 1", "image": "/floorplans/parkview-l1.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l2", "name": "Level 2", "image": "/floorplans/parkview-l2.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l3", "name": "Level 3", "image": "/floorplans/parkview-l3.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l4", "name": "Level 4", "image": "/floorplans/parkview-l4.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l5a", "name": "Level 5 (Sheet 1)", "image": "/floorplans/parkview-l5a.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l5b", "name": "Level 5 (Sheet 2)", "image": "/floorplans/parkview-l5b.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l6", "name": "Level 6", "image": "/floorplans/parkview-l6.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l7", "name": "Level 7", "image": "/floorplans/parkview-l7.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l8", "name": "Level 8", "image": "/floorplans/parkview-l8.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l9", "name": "Level 9", "image": "/floorplans/parkview-l9.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l10", "name": "Level 10", "image": "/floorplans/parkview-l10.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l11", "name": "Level 11", "image": "/floorplans/parkview-l11.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l12", "name": "Level 12", "image": "/floorplans/parkview-l12.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l13", "name": "Level 13", "image": "/floorplans/parkview-l13.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-l14", "name": "Level 14", "image": "/floorplans/parkview-l14.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "pv-roof", "name": "Roof", "image": "/floorplans/parkview-roof.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] }
     ]
   },
   {
-    "building": "Main Wing (B Floor)",
-    "buildingId": "main-east",
+    "building": "Center for Advanced Medicine (CAM)",
+    "buildingId": "cam",
     "floors": [
-      {
-        "id": "b1",
-        "name": "Floor 1 - Emergency",
-        "image": "/floorplans/mainb-floor1.png",
-        "bounds": [
-          [38.6270, -90.2422],
-          [38.6268, -90.2412]
-        ]
-      },
-      {
-        "id": "b2",
-        "name": "Floor 2 - Surgery",
-        "image": "/floorplans/mainb-floor2.png",
-        "bounds": [
-          [38.6270, -90.2422],
-          [38.6268, -90.2412]
-        ]
-      }
-    ]
-  },
-  {
-    "building": "Children's Hospital",
-    "buildingId": "childrens-hospital",
-    "floors": [
-      {
-        "id": "c1",
-        "name": "Floor 1 - ER",
-        "image": "/floorplans/childrens-floor1.png",
-        "bounds": [
-          [38.6265, -90.2420],
-          [38.6260, -90.2410]
-        ]
-      },
-      {
-        "id": "c2",
-        "name": "Floor 2 - Inpatient",
-        "image": "/floorplans/childrens-floor2.png",
-        "bounds": [
-          [38.6265, -90.2420],
-          [38.6260, -90.2410]
-        ]
-      },
-      {
-        "id": "c3",
-        "name": "Floor 3 - ICN",
-        "image": "/floorplans/childrens-floor3.png",
-        "bounds": [
-          [38.6265, -90.2420],
-          [38.6260, -90.2410]
-        ]
-      }
-    ]
-  },
-  {
-    "building": "Adult ED",
-    "buildingId": "adult-ed",
-    "floors": [
-      {
-        "id": "d1",
-        "name": "Floor 1 - Triage",
-        "image": "/floorplans/adulted-floor1.png",
-        "bounds": [
-          [38.6268, -90.2412],
-          [38.6264, -90.2405]
-        ]
-      },
-      {
-        "id": "d2",
-        "name": "Floor 2 - Consults",
-        "image": "/floorplans/adulted-floor2.png",
-        "bounds": [
-          [38.6268, -90.2412],
-          [38.6264, -90.2405]
-        ]
-      }
-    ]
-  },
-  {
-    "building": "Parking Garage",
-    "buildingId": "parking-garage",
-    "floors": [
-      {
-        "id": "g1",
-        "name": "Level -1",
-        "image": "/floorplans/garage-level1.png",
-        "bounds": [
-          [38.6275, -90.2408],
-          [38.6272, -90.2400]
-        ]
-      },
-      {
-        "id": "g2",
-        "name": "Level -2",
-        "image": "/floorplans/garage-level2.png",
-        "bounds": [
-          [38.6275, -90.2408],
-          [38.6272, -90.2400]
-        ]
-      }
+      { "id": "cam-l1", "name": "Level 1 (CAM)", "image": "/floorplans/cam-l1.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l2", "name": "Level 2 (CAM)", "image": "/floorplans/cam-l2.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l3", "name": "Level 3 (CAM)", "image": "/floorplans/cam-l3.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l4", "name": "Level 4 (CAM)", "image": "/floorplans/cam-l4.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l5", "name": "Level 5 (CAM)", "image": "/floorplans/cam-l5.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l6", "name": "Level 6 (CAM)", "image": "/floorplans/cam-l6.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l7", "name": "Level 7 (CAM)", "image": "/floorplans/cam-l7.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l8", "name": "Level 8 (CAM)", "image": "/floorplans/cam-l8.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l9", "name": "Level 9 (CAM)", "image": "/floorplans/cam-l9.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l10", "name": "Level 10 (CAM)", "image": "/floorplans/cam-l10.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l11", "name": "Level 11 (CAM)", "image": "/floorplans/cam-l11.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l12", "name": "Level 12 (CAM)", "image": "/floorplans/cam-l12.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l13", "name": "Level 13 (CAM)", "image": "/floorplans/cam-l13.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] },
+      { "id": "cam-l14", "name": "Level 14 (CAM)", "image": "/floorplans/cam-l14.png", "bounds": [[38.6383655, -90.265539], [38.638781, -90.262681]] }
     ]
   }
 ]
