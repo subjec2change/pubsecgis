@@ -8,6 +8,10 @@ import { getHeatmapData } from '../api/endpoints';
 import FloorplanSelector from './FloorplanSelector';
 import floorplans from '../data/floorplans.json';
 
+/** Clockwise tilt (degrees) applied to floor-plan sheets so the printed
+ *  footprints align with the surveyed building corners. Tune here. */
+const FLOORPLAN_ROTATION_DEG = 10;
+
 interface OfficerMapProps {
   incidents: Incident[];
   broadcastIncidents: BroadcastIncident[];
@@ -64,6 +68,8 @@ export default function OfficerMap({
   // when the effect re-runs for unrelated re-renders.
   const lastFlownFloorRef = useRef<string | null>(null);
   const lastFlownBuildingRef = useRef<string | null>(null);
+  // Teardown for the floorplan rotation listeners (see overlay effect)
+  const floorplanRotationOffRef = useRef<(() => void) | null>(null);
 
   // Import shared coordinate resolver (Task 4)
   const getIncidentCoords = useCallback((incidentList: typeof incidents) => {
@@ -207,6 +213,9 @@ export default function OfficerMap({
         map.removeLayer(floorplanImageRef.current);
         floorplanImageRef.current = null;
       }
+      if (floorplanRotationOffRef.current) {
+        floorplanRotationOffRef.current();
+      }
       if (selectedFloorId && !selectedBuildingId) {
         // Floor was cleared
         map.flyTo(centerRef.current, zoomRef.current, { animate: true, duration: 0.5 });
@@ -251,11 +260,33 @@ export default function OfficerMap({
       [floorData.bounds[1][0], floorData.bounds[1][1]],
     ];
 
-    // Add image overlay
+    // Add image overlay. L.imageOverlay only supports axis-aligned rects, so
+    // we CSS-rotate the underlying <img> about its centre to match the
+    // surveyed (slightly rotated) building footprints. Leaflet overwrites
+    // the img's style on every zoom/pan reposition, so re-apply on zoomend,
+    // moveend and resize — the rotation is screen-anchored and stays correct.
     const imageOverlay = L.imageOverlay(floorData.image, leafletBounds, {
       opacity: 0.85,
+      interactive: false,
     }).addTo(map);
     floorplanImageRef.current = imageOverlay;
+
+    const applyRotation = () => {
+      const img = imageOverlay.getElement()?.querySelector('img');
+      if (img) {
+        img.style.transformOrigin = 'center center';
+        img.style.transform = `rotate(${FLOORPLAN_ROTATION_DEG}deg)`;
+      }
+    };
+    applyRotation();
+    map.on('zoomend moveend resize', applyRotation);
+    // Clean up the listener when this overlay is replaced/removed
+    const prevListeners = floorplanRotationOffRef.current;
+    if (prevListeners) prevListeners();
+    floorplanRotationOffRef.current = () => {
+      map.off('zoomend moveend resize', applyRotation);
+      floorplanRotationOffRef.current = null;
+    };
 
     // Zoom to floor bounds — only when the floor actually changed
     lastFlownFloorRef.current = selectedFloorId;
