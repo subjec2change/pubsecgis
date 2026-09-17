@@ -27,6 +27,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       return true;
     } catch {
+      // Failed login (or /auth/me rejected) — don't leave a dead token behind
+      localStorage.removeItem('access_token');
+      setToken(null);
       return false;
     }
   }, []);
