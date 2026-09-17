@@ -272,6 +272,9 @@ export default function OfficerMap({
     const imageOverlay = L.imageOverlay(floorData.image, leafletBounds, {
       opacity: 1,
       interactive: false,
+      // Dedicated pane (z 450): above the dark backdrop SVG (z 200 inside
+      // overlay pane z 400), below incident markers (marker pane z 600).
+      pane: 'floorplanImage',
     }).addTo(map);
     floorplanImageRef.current = imageOverlay;
 
@@ -329,6 +332,14 @@ export default function OfficerMap({
     // maxZoom 22 lets users zoom past the OSM tile ceiling to read floorplan
     // detail; maxNativeZoom 19 below keeps tile requests at OSM's real max.
     const map = L.map(containerRef.current, { maxZoom: 22 }).setView(center, zoom);
+
+    // Dedicated pane for floor-plan sheets: sits above the overlay pane
+    // (z 400 — dark backdrop SVG) and below the marker pane (z 600), so the
+    // 92%-opaque backdrop never paints over the plan while incident markers
+    // still draw on top of it.
+    map.createPane('floorplanImage');
+    map.getPane('floorplanImage')!.style.zIndex = '450';
+
     const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 22,
