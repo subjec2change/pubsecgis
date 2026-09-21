@@ -110,3 +110,23 @@ class HandoffNote(Base):
 
     shift = relationship("Shift", back_populates="handoff_notes")
     logged_by_user = relationship("User", back_populates="handoff_notes_logged")
+
+
+class Floorplan(Base):
+    __tablename__ = "floorplans"
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    floor_id = Column(String(60), unique=True, nullable=False)
+    campus = Column(String(120), nullable=False)
+    building = Column(String(120), nullable=False)
+    building_id = Column(String(60), nullable=False, index=True)
+    floor_name = Column(String(120), nullable=False)
+    image = Column(String(255), nullable=False)
+    south = Column(Numeric, nullable=False)
+    west = Column(Numeric, nullable=False)
+    north = Column(Numeric, nullable=False)
+    east = Column(Numeric, nullable=False)
+    rotation = Column(Numeric, nullable=False, default=0)
+    active = Column(Boolean, nullable=False, default=True)
+    notes = Column(TextType)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

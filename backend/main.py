@@ -61,6 +61,7 @@ from routes.locations import router as locations_router
 from routes.users import router as users_router
 from routes.shifts import router as shifts_router
 from routes.analytics import router as analytics_router
+from routes.floorplans import router as floorplans_router
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(incidents_router, prefix="/api/incidents", tags=["Incidents"])
@@ -70,6 +71,20 @@ app.include_router(handoff_router, prefix="/api/handoff", tags=["Handoff Notes"]
 app.include_router(locations_router, prefix="/api/locations", tags=["Locations"])
 app.include_router(users_router, prefix="/api/users", tags=["Users"])
 app.include_router(shifts_router, prefix="/api/shifts", tags=["Shifts"])
+app.include_router(floorplans_router, prefix="/api/floorplans", tags=["Floorplans"])
+
+
+# Serve floor-plan images (static assets committed under
+# frontend/public/floorplans). In production nginx serves these directly;
+# this mount keeps dev/prod identical and lets the API host the images too.
+import os as _os
+from fastapi.staticfiles import StaticFiles as _StaticFiles
+
+_FLOORPLAN_DIR = _os.path.abspath(
+    _os.path.join(_os.path.dirname(__file__), "..", "frontend", "public", "floorplans")
+)
+if _os.path.isdir(_FLOORPLAN_DIR):
+    app.mount("/floorplans", _StaticFiles(directory=_FLOORPLAN_DIR), name="floorplans")
 
 
 @app.get("/api/health", tags=["Health"])

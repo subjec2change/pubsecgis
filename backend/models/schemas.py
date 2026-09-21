@@ -274,3 +274,42 @@ class HandoffNoteResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class FloorplanResponse(BaseModel):
+    floor_id: str
+    campus: str
+    building: str
+    building_id: str
+    floor_name: str
+    image: str
+    bounds: list  # [[south, west], [north, east]] — leaflet imageOverlay order
+    rotation: float = 0
+    notes: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_orm_floorplan(cls, fp):
+        return cls(
+            floor_id=fp.floor_id, campus=fp.campus, building=fp.building,
+            building_id=fp.building_id, floor_name=fp.floor_name, image=fp.image,
+            bounds=[[float(fp.south), float(fp.west)], [float(fp.north), float(fp.east)]],
+            rotation=float(fp.rotation or 0), notes=fp.notes,
+        )
+
+
+class FloorplanCreate(BaseModel):
+    floor_id: str = Field(min_length=1, max_length=60)
+    campus: str = Field(min_length=1, max_length=120)
+    building: str = Field(min_length=1, max_length=120)
+    building_id: str = Field(min_length=1, max_length=60)
+    floor_name: str = Field(min_length=1, max_length=120)
+    image: str = Field(min_length=1, max_length=255)
+    south: float
+    west: float
+    north: float
+    east: float
+    rotation: float = 0
+    notes: Optional[str] = None
