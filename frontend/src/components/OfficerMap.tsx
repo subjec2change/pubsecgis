@@ -292,12 +292,15 @@ export default function OfficerMap({
       img.style.transform = `${base} rotate(${FLOORPLAN_ROTATION_DEG}deg)`.trim();
     };
     applyRotation();
-    map.on('zoomend moveend resize', applyRotation);
+    // 'zoom'/'move' fire on EVERY animation frame (flyTo), 'zoomend'/etc on
+    // settle. Without the per-frame events the sheet lands un-tilted and
+    // snaps to angle after the flight animation — the visible "delay".
+    map.on('zoom move zoomend moveend resize', applyRotation);
     // Clean up the listener when this overlay is replaced/removed
     const prevListeners = floorplanRotationOffRef.current;
     if (prevListeners) prevListeners();
     floorplanRotationOffRef.current = () => {
-      map.off('zoomend moveend resize', applyRotation);
+      map.off('zoom move zoomend moveend resize', applyRotation);
       floorplanRotationOffRef.current = null;
     };
 
