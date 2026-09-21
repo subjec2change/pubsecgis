@@ -2,15 +2,10 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
-import type { Incident, BroadcastIncident, ColorMapping } from '../types';
+import type { Incident, BroadcastIncident, ColorMapping, FloorplanEntry } from '../types';
 import { DEFAULT_COLOR_MAP, INCIDENT_TYPE_LABELS } from '../types';
-import { getHeatmapData } from '../api/endpoints';
+import { getHeatmapData, getFloorplans } from '../api/endpoints';
 import FloorplanSelector from './FloorplanSelector';
-import floorplans from '../data/floorplans.json';
-
-/** Clockwise tilt (degrees) applied to floor-plan sheets so the printed
- *  footprints align with the surveyed building corners. Tune here. */
-const FLOORPLAN_ROTATION_DEG = 10;
 
 interface OfficerMapProps {
   incidents: Incident[];
@@ -122,13 +117,27 @@ export default function OfficerMap({
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [heatmapLegendVisible, setHeatmapLegendVisible] = useState(false);
 
-  // Placeholder floorplan buildings (ready to replace with real floorplan images)
-  const floorplanBuildings = [
-    { id: 'main-building', name: 'Main Building', color: '#3B82F6', bounds: [[38.6300, -90.2460], [38.6250, -90.2380]], floors: [{ id: 'a1', name: 'Floor 1 - Lobby' }, { id: 'a2', name: 'Floor 2 - Offices' }, { id: 'a3', name: 'Floor 3 - Medical' }] },
-    { id: 'childrens-hospital', name: "Children's Hospital", color: '#22C55E', bounds: [[38.6300, -90.2460], [38.6250, -90.2380]], floors: [{ id: 'c1', name: 'Floor 1 - ER' }, { id: 'c2', name: 'Floor 2 - Inpatient' }, { id: 'c3', name: 'Floor 3 - ICN' }] },
-    { id: 'adult-ed', name: 'Adult ED', color: '#EF4444', bounds: [[38.6300, -90.2460], [38.6250, -90.2380]], floors: [{ id: 'd1', name: 'Floor 1 - Triage' }, { id: 'd2', name: 'Floor 2 - Consults' }] },
-    { id: 'parking-garage', name: 'Parking Garage', color: '#6B7280', bounds: [[38.6300, -90.2460], [38.6250, -90.2380]], floors: [{ id: 'g1', name: 'Level -1' }, { id: 'g2', name: 'Level -2' }] },
-  ];
+  // Floor-plan registry (from /api/floorplans) — drives building outlines,
+  // sheet overlays and the searchable selector.
+  const [allEntries, setAllEntries] = useState<FloorplanEntry[]>([]);
+  const selectedEntryRef = useRef<FloorplanEntry | null>(null);
+
+  useEffect(() => {
+    getFloorplans().then(setAllEntries).catch(() => setAllEntries([]));
+  }, []);
+
+  // Building footprint outlines derived from the registry (one rect per
+  // building; every sheet of a building shares the surveyed bounds).
+  const buildingOutlines = useMemo(() => {
+    const byId = new Map<string, { id: string; name: string; bounds: number[][] }>();
+    for (const e of allEntries) {
+      if (!byId.has(e.building_id)) {
+        byId.set(e.building_id, { id: e.building_id, name: e.building, bounds: e.bounds });
+      }
+    }
+    const palette = ['#3B82F6', '#22C55E', '#EF4444', '#F59E0B', '#8B5CF6', '#06B6D4', '#EC4899', '#84CC16'];
+    return [...byId.values()].map((b, i) => ({ ...b, color: palette[i % palette.length] }));
+  }, [allEntries]);
 
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
   const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
@@ -137,9 +146,15 @@ export default function OfficerMap({
     const map = mapRef.current;
     if (!map) return;
 
+    // Teardown previous outlines (rebuilt when view or registry changes)
+    if (floorplanLayersRef.current) {
+      map.removeLayer(floorplanLayersRef.current);
+      floorplanLayersRef.current = null;
+    }
+
     if (currentView === 'floorplan') {
       // Keep tiles underneath, create floorplan overlay on top
-      if (!floorplanLayersRef.current) {
+      {
         const fg = L.layerGroup();
         // Add a dark overlay rectangle covering the viewport
         const overlayBounds = [
@@ -152,7 +167,7 @@ export default function OfficerMap({
           fillOpacity: 0.92,
           weight: 0,
         }).addTo(fg);
-        floorplanBuildings.forEach((building) => {
+        buildingOutlines.forEach((building) => {
           const rectangle = L.rectangle(building.bounds as L.LatLngBoundsLiteral, {
             color: building.color,
             fillColor: building.color,
@@ -191,13 +206,8 @@ export default function OfficerMap({
         fg.addTo(map);
         floorplanLayersRef.current = fg;
       }
-    } else {
-      if (floorplanLayersRef.current) {
-        map.removeLayer(floorplanLayersRef.current);
-        floorplanLayersRef.current = null;
-      }
     }
-  }, [currentView]);
+  }, [currentView, buildingOutlines]);
 
   // Handle floor selection: add/remove image overlay + fitBounds
   useEffect(() => {
@@ -235,15 +245,17 @@ export default function OfficerMap({
       return;
     }
 
-    // Find the selected floor's data
-    let floorData: { image: string; bounds: number[][] } | undefined;
-    for (const building of floorplans) {
-      if (selectedBuildingId && building.buildingId === selectedBuildingId) {
-        floorData = building.floors.find((f) => f.id === selectedFloorId);
-        break;
-      }
-    }
+    // Find the selected floor's data from the registry
+    const floorData =
+      selectedEntryRef.current && selectedEntryRef.current.floor_id === selectedFloorId
+        ? selectedEntryRef.current
+        : allEntries.find(
+            (e) =>
+              e.floor_id === selectedFloorId &&
+              (!selectedBuildingId || e.building_id === selectedBuildingId),
+          );
     if (!floorData || !floorData.image) return;
+    selectedEntryRef.current = floorData;
 
     // Remove previous overlay if any
     if (floorplanImageRef.current) {
@@ -289,7 +301,7 @@ export default function OfficerMap({
         .replace(/rotate\([^)]*\)/g, '')
         .replace(/\s+/g, ' ')
         .trim();
-      img.style.transform = `${base} rotate(${FLOORPLAN_ROTATION_DEG}deg)`.trim();
+      img.style.transform = `${base} rotate(${floorData.rotation ?? 0}deg)`.trim();
     };
     applyRotation();
     // 'zoom'/'move' fire on EVERY animation frame (flyTo), 'zoomend'/etc on
@@ -778,13 +790,14 @@ export default function OfficerMap({
           background: 'rgba(11, 18, 25, 0.95)', border: '1px solid var(--border)',
           padding: '0.5rem', borderRadius: '6px',
         }}>
-          <FloorplanSelector onFloorSelect={(floorId, floorName) => {
+          <FloorplanSelector onFloorSelect={(floorId, floorName, entry) => {
             if (!floorId) {
+              selectedEntryRef.current = null;
               setSelectedBuildingId(null);
               setSelectedFloorId(null);
             } else {
-              const building = floorplans.find((b) => b.floors.some((f) => f.id === floorId));
-              setSelectedBuildingId(building?.buildingId ?? null);
+              selectedEntryRef.current = entry ?? null;
+              setSelectedBuildingId(entry?.building_id ?? null);
               setSelectedFloorId(floorId);
             }
             onFloorSelectRef.current?.(floorId || null, floorName || '');

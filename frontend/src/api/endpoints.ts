@@ -7,6 +7,7 @@ import type {
   ColorMapping,
   HandoffNote,
   Location,
+  FloorplanEntry,
 } from '../types';
 
 // Auth
@@ -154,4 +155,12 @@ export async function searchLocations(q: string): Promise<Location[]> {
 export async function getResponsePhases(): Promise<{ phase: string; label: string }[]> {
   const res = await client.get<{ phases: { phase: string; label: string }[] }>('/incidents/response-phases');
   return res.data.phases;
+}
+
+// Floorplans
+export async function getFloorplans(q?: string): Promise<FloorplanEntry[]> {
+  const res = await client.get<FloorplanEntry[]>('/floorplans', {
+    params: q ? { q } : undefined,
+  });
+  return res.data;
 }

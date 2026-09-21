@@ -213,3 +213,15 @@ export const FLOORPLAN_VIEWS: FloorplanView[] = [
 ];
 
 export type FloorplanViewId = (typeof FLOORPLAN_VIEWS)[number]['id'];
+
+export interface FloorplanEntry {
+  floor_id: string;
+  campus: string;
+  building: string;
+  building_id: string;
+  floor_name: string;
+  image: string;
+  bounds: [[number, number], [number, number]];
+  rotation: number;
+  notes?: string | null;
+}
