@@ -25,11 +25,18 @@ async def list_floorplans(
     if q and q.strip():
         # All tokens must match somewhere in campus+building+floor
         # ("parkview 8" -> building like %parkview% AND floor like %8%).
+        # Tokens are literal: LIKE metacharacters are escaped so '%'/'_'
+        # in a search term match themselves, not wildcards.
         combined = func.concat_ws(
             " ", Floorplan.campus, Floorplan.building, Floorplan.floor_name
         )
         for token in q.split():
-            stmt = stmt.where(combined.ilike(f"%{token}%"))
+            literal = (
+                token.replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
+            )
+            stmt = stmt.where(combined.ilike(f"%{literal}%", escape="\\"))
     stmt = stmt.order_by(Floorplan.campus, Floorplan.building, Floorplan.id)
     rows = (await db.execute(stmt)).scalars().all()
     return [FloorplanResponse.from_orm_floorplan(r) for r in rows]

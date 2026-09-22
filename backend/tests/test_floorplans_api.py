@@ -124,6 +124,50 @@ class TestFloorplanSearch:
 
 
 # ──────────────────────────────────────────────
+# LIKE metacharacter escaping (search tokens are literal)
+# ──────────────────────────────────────────────
+
+class TestFloorplanSearchLiteralTokens:
+    """Search tokens containing LIKE metacharacters (% and _) must be
+    matched literally, not treated as wildcards."""
+
+    async def test_percent_token_is_not_a_wildcard(self, db, floorplan_factory):
+        """'token%tail' must not match a row whose text just has
+        'token' followed later by 'tail' — only a literal '%' matches."""
+        tok = "zzzq7pct"
+        fp = await floorplan_factory(
+            campus=f"{tok}campus", building=f"{tok}bldg",
+            floor_name=f"{tok}floor", building_id=f"{tok}-b",
+        )
+        # No row contains a literal '%', so the search must find nothing.
+        hits = [r.floor_id for r in await list_floorplans(
+            q=f"{tok}%floor", building_id=None, include_inactive=False, db=db)]
+        assert hits == []
+
+    async def test_percent_token_matches_literal_percent_in_text(self, db, floorplan_factory):
+        """A floor_name containing a literal '%' is found by that token."""
+        tok = "zzzpct2"
+        fp = await floorplan_factory(
+            campus=f"{tok} campus", building=f"{tok} bldg",
+            floor_name=f"{tok}-100%done", building_id=f"{tok}-b",
+        )
+        hits = [r.floor_id for r in await list_floorplans(
+            q=f"{tok}-100%done", building_id=None, include_inactive=False, db=db)]
+        assert hits == [fp.floor_id]
+
+    async def test_underscore_token_is_not_a_single_char_wildcard(self, db, floorplan_factory):
+        """'a_b' must not match 'axb' — only a literal underscore matches."""
+        tok = "zzzus"
+        fp = await floorplan_factory(
+            campus=f"{tok} campus", building=f"{tok} bldg",
+            floor_name=f"{tok}axb", building_id=f"{tok}-b",
+        )
+        hits = [r.floor_id for r in await list_floorplans(
+            q=f"{tok}a_b", building_id=None, include_inactive=False, db=db)]
+        assert hits == []
+
+
+# ──────────────────────────────────────────────
 # Response mapping
 # ──────────────────────────────────────────────
 

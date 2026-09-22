@@ -287,8 +287,7 @@ class FloorplanResponse(BaseModel):
     rotation: float = 0
     notes: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
     @classmethod
     def from_orm_floorplan(cls, fp):
