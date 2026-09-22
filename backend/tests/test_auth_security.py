@@ -66,12 +66,20 @@ class TestTokenRejection:
             _decode(token)
 
     def test_tampered_signature_rejected(self):
-        """Flipping one char of the signature breaks verification."""
+        """Changing a signature BYTE (not a base64 char) breaks verification.
+
+        Flipping the last base64url character is NOT deterministic: its low
+        bits are padding-ignored, so some signatures decode unchanged (the
+        token verifies and no error raises). Mutate decoded bytes instead.
+        """
+        import base64
+
         token = create_access_token({"sub": "u", "role": "officer"})
         header, body, signature = token.split(".")
-        last = signature[-1]
-        flipped = ("A" if last != "A" else "B")
-        tampered = f"{header}.{body}.{signature[:-1]}{flipped}"
+        sig_bytes = base64.urlsafe_b64decode(signature + "==")
+        tampered_sig = bytes([sig_bytes[0] ^ 0xFF]) + sig_bytes[1:]
+        tampered_b64 = base64.urlsafe_b64encode(tampered_sig).rstrip(b"=").decode()
+        tampered = f"{header}.{body}.{tampered_b64}"
         with pytest.raises(JWTError):
             _decode(tampered)
 
