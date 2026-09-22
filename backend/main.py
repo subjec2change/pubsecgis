@@ -24,7 +24,9 @@ async def auto_archive_loop():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: verify DB on startup, start auto-archive, clean up on shutdown."""
+    """Application lifespan: guard config, verify DB on startup, start auto-archive, clean up on shutdown."""
+    from config import validate_settings_for_env
+    validate_settings_for_env()
     from models.database import engine
     async with engine.connect() as conn:
         result = await conn.execute(text("SELECT 1"))
