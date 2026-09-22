@@ -113,11 +113,20 @@ class TestDevelopmentBehavior:
 class TestGuardDefaults:
     """validate_settings_for_env(None) falls back to the module settings."""
 
-    def test_none_uses_module_settings_dev_warn(self):
-        """Local dev instance (environment=development) warns, does not raise."""
+    def test_none_uses_module_settings_dev_warn(self, monkeypatch):
+        """Development settings with default secrets warn, do not raise.
+
+        monkeypatch instead of reading real module settings: CI exports
+        PUBSECGIS_* overrides, so host env must not decide the outcome.
+        """
         from config import settings as module_settings
 
-        if module_settings.environment.lower() == "production":  # pragma: no cover
-            pytest.skip("host configured as production; guard would raise by design")
+        monkeypatch.setattr(module_settings, "environment", "development")
+        monkeypatch.setattr(module_settings, "secret_key", "change-me-in-production")
+        monkeypatch.setattr(
+            module_settings,
+            "database_url",
+            "postgresql+asyncpg://pusecgis:pusecgis_dev@localhost:15432/pusecgis_dev",
+        )
         with pytest.warns(UserWarning):
             validate_settings_for_env()
