@@ -5,6 +5,7 @@ from geoalchemy2 import Geography, Geometry
 
 from models.database import get_session, Incident
 from models.schemas import VALID_INCIDENT_TYPES
+from dependencies import require_role
 
 router = APIRouter()
 
@@ -130,7 +131,7 @@ async def trends(
     return sorted(buckets.values(), key=lambda b: b["date_str"])
 
 
-@router.get("/export.csv")
+@router.get("/export.csv", dependencies=[Depends(require_role("lead", "admin"))])
 async def export_csv(
     status: str | None = Query(None, description="Filter by status"),
     start_date: str | None = Query(None, description="Filter start date YYYY-MM-DD"),
