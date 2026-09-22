@@ -532,6 +532,76 @@ sudo tail -f /var/log/nginx/error.log
 
 ---
 
+## Database Backup & Restore
+
+Backups are `pg_dump` custom-format archives written to disk by
+`scripts/backup.sh`, on a nightly systemd timer. The script runs `pg_dump`
+*inside* the `pusecgis-db` container over its unix socket — it needs no
+password and stores no credentials. Each dump is verified with
+`pg_restore --list` before it is trusted, then rotated (newest N kept).
+Dump files are `chmod 600` — they contain incident records and password
+hashes.
+
+### Configuration
+
+Add to `/etc/default/pubsecgis` (the same file the backend service reads):
+
+```bash
+PUSECGIS_DB_NAME=pusecgis            # REQUIRED — script refuses to guess
+PUSECGIS_DB_CONTAINER=pusecgis-db    # default
+PUSECGIS_DB_USER=pusecgis            # default
+PUSECGIS_BACKUP_DIR=/var/backups/pusecgis
+PUSECGIS_BACKUP_KEEP=14              # nightly dumps = 2 weeks of history
+```
+
+### Install the nightly timer
+
+```bash
+sudo cp scripts/pusecgis-backup.service scripts/pusecgis-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now pusecgis-backup.timer
+systemctl list-timers pusecgis-backup.timer   # confirm it is scheduled
+```
+
+Run manually any time: `sudo /opt/pubsecgis/scripts/backup.sh`
+
+### Restore drill — run after install and monthly after
+
+A backup you have not restored is a hope, not a backup. The drill restores
+the newest dump into a throwaway database in the same container and compares
+row counts of every table against the live one. It never touches the live
+data.
+
+```bash
+sudo PUSECGIS_DB_NAME=pusecgis /opt/pubsecgis/scripts/restore-drill.sh
+```
+
+Expected final line: `DRILL PASS: <dump> restores a complete copy of <db>`.
+A `MISMATCH <table>: live=A restored=B` line means the dump is stale or
+corrupt — investigate before trusting any restore.
+
+### Full restore (disaster)
+
+1. Stop the backend so nothing writes: `sudo systemctl stop pusecgis-backend`
+2. Copy the chosen dump into the container and restore into a fresh database:
+   ```bash
+   DUMP=/var/backups/pusecgis/pusecgis-<STAMP>.dump
+   docker cp "$DUMP" pusecgis-db:/tmp/restore.dump
+   docker exec pusecgis-db psql -U pusecgis -d postgres -c \
+     "DROP DATABASE IF EXISTS pusecgis WITH (FORCE); CREATE DATABASE pusecgis OWNER pusecgis;"
+   docker exec pusecgis-db pg_restore -U pusecgis -d pusecgis --no-owner /tmp/restore.dump
+   docker exec pusecgis-db rm -f /tmp/restore.dump
+   ```
+3. Verify counts: `docker exec pusecgis-db psql -U pusecgis -d pusecgis -c "select count(*) from incidents;"`
+4. Start the backend and sign in: `sudo systemctl start pusecgis-backend`
+
+### Off-machine copies (do not skip)
+
+Disk rotation only survives deleted files, not a dead disk or dead host.
+Copy the newest dump off the server at least weekly — rsync/scp to another
+machine, or `borg create` a borg repository from `/var/backups/pusecgis`.
+The drill above proves any copy is restorable.
+
 ## Screen URLs
 
 | Screen | URL |
