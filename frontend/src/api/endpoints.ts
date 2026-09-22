@@ -186,3 +186,9 @@ export async function downloadShiftReportPdf(date?: string, code?: string): Prom
   const res = await client.get<Blob>('/reports/shift', { params, responseType: 'blob' });
   return res.data;
 }
+
+// Shifts
+export async function getShiftsByDate(dateIso: string): Promise<{ id: number; shift_code: string }[]> {
+  const res = await client.get<{ id: number; shift_code: string }[]>('/shifts', { params: { date: dateIso } });
+  return res.data;
+}

@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import type { ColorMapping } from '../types';
 import { INCIDENT_TYPE_LABELS, DEFAULT_COLOR_MAP } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -91,6 +92,7 @@ export default function TrendsTab({
   onFilterStatusChange,
   filterStatus,
 }: TrendsTabProps) {
+  const { user } = useAuth();
   /* ---- period buttons (7d default) ---- */
   const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('7d');
 
@@ -192,7 +194,10 @@ export default function TrendsTab({
 
   /** Generic blob download helper using URL.createObjectURL. */
   async function downloadBlob(url: string, filename: string) {
-    const res = await fetch(url);
+    const token = localStorage.getItem('access_token');
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     if (!res.ok) throw new Error(`Export HTTP ${res.status}`);
     const blob = await res.blob();
     const objectUrl = URL.createObjectURL(blob);
@@ -451,7 +456,8 @@ export default function TrendsTab({
         )}
       </div>
 
-      {/* ---- Export Report Section ---- */}
+      {/* ---- Export Report Section (lead/admin only — export.csv is gated) ---- */}
+      {(user?.role === 'lead' || user?.role === 'admin') && (
       <div
         style={{
           background: 'var(--bg-card)',
@@ -647,6 +653,7 @@ export default function TrendsTab({
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }

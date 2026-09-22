@@ -11,7 +11,8 @@ from dependencies import get_current_user
 router = APIRouter()
 
 
-@router.get("", response_model=list[ShiftResponse])
+@router.get("", response_model=list[ShiftResponse],
+            dependencies=[Depends(get_current_user)])
 async def list_shifts(
     date_param: Optional[str] = Query(None, alias="date"),
     db: AsyncSession = Depends(get_session),

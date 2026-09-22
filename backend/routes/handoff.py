@@ -9,7 +9,8 @@ from dependencies import get_current_user
 router = APIRouter()
 
 
-@router.get("/notes", response_model=list[HandoffNoteResponse])
+@router.get("/notes", response_model=list[HandoffNoteResponse],
+            dependencies=[Depends(get_current_user)])
 async def list_handoff_notes(
     shift: int | None = Query(None),
     date: str | None = Query(None),

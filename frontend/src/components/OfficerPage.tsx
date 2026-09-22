@@ -10,6 +10,7 @@ import {
   getIncidents,
   getBroadcastIncidents,
   getColorConfig,
+  getShiftsByDate,
 } from '../api/endpoints';
 
 const VIEW_KEY = 'pusecgis_view';
@@ -62,9 +63,7 @@ export default function OfficerPage() {
     const loadShiftIds = async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const res = await fetch('http://localhost:8000/api/shifts?date=' + today);
-        if (!res.ok) return;
-        const shifts = await res.json();
+        const shifts = await getShiftsByDate(today);
         const ids: Record<string, number> = {};
         for (const s of shifts) {
           ids[s.shift_code] = s.id;
