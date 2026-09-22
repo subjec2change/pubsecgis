@@ -77,6 +77,17 @@ def render_shift_report_pdf(report: dict) -> bytes:
         ]
         flow.append(_table(rows, widths=[4 * inch, 1.2 * inch]))
 
+    # Per-officer breakdown (v2)
+    officers = report["stats"].get("by_officer") or []
+    if officers:
+        flow.append(Paragraph("By officer", ss["Section"]))
+        rows = [["Officer", "Total", "By type"]]
+        for o in officers:
+            types = ", ".join(f"{t} × {c}" for t, c in
+                              sorted(o["by_type"].items(), key=lambda kv: (-kv[1], kv[0])))
+            rows.append([o["author"], str(o["total"]), types])
+        flow.append(_table(rows, widths=[1.7 * inch, 0.7 * inch, 4.7 * inch]))
+
     # Timeline
     flow.append(Paragraph("Reports by hour", ss["Section"]))
     flow.append(_table(

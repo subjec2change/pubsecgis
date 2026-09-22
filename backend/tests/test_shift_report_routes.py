@@ -105,6 +105,11 @@ class TestShiftReportEndpoint:
             assert body["shift"]["code"] == "DAY"
             assert body["stats"]["total"] == 1
             assert body["stats"]["by_type"] == {"sitter": 1}
+            # v2: per-officer breakdown keyed by display_name of logged_by
+            assert body["stats"]["by_officer"] == [
+                {"author": "ZZZ Reporter", "total": 1, "by_type": {"sitter": 1}}
+            ]
+            assert body["incidents"][0]["author"] == "ZZZ Reporter"
             assert body["incidents"][0]["id"] == inc.id
             assert body["handoff_notes"][0]["note"] == "zzz handoff line"
 

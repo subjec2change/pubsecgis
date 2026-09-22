@@ -60,9 +60,14 @@ def build_shift_report(
             buckets.pop()
 
     by_type: dict[str, int] = {}
+    by_officer: dict[str, dict] = {}
     incident_rows = []
     for inc in incidents:
         by_type[inc.incident_type] = by_type.get(inc.incident_type, 0) + 1
+        author = getattr(getattr(inc, "logged_by_user", None), "display_name", None) or "Unknown"
+        officer = by_officer.setdefault(author, {"author": author, "total": 0, "by_type": {}})
+        officer["total"] += 1
+        officer["by_type"][inc.incident_type] = officer["by_type"].get(inc.incident_type, 0) + 1
         local = inc.created_at.astimezone(z) if inc.created_at else start
         hour = local.hour
         first, last = start.hour, start.hour + len(buckets) - 1
@@ -79,6 +84,7 @@ def build_shift_report(
             "status": inc.status.value if hasattr(inc.status, "value") else str(inc.status),
             "response_phase": inc.response_phase,
             "description": inc.description,
+            "author": author,
         })
 
     note_rows = []
@@ -105,7 +111,13 @@ def build_shift_report(
             "in_progress": in_progress,
         },
         "generated_at": now.astimezone(z).isoformat(timespec="seconds"),
-        "stats": {"total": len(incident_rows), "by_type": by_type},
+        "stats": {
+            "total": len(incident_rows),
+            "by_type": by_type,
+            "by_officer": sorted(
+                by_officer.values(), key=lambda o: (-o["total"], o["author"])
+            ),
+        },
         "timeline": buckets,
         "incidents": incident_rows,
         "handoff_notes": note_rows,

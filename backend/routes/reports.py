@@ -24,7 +24,10 @@ _VALID_CODES = {"DAY", "EVE", "NIGHT"}
 async def _load_report(db: AsyncSession, shift: Shift) -> dict:
     incidents = (
         await db.execute(
-            select(Incident).where(Incident.shift_id == shift.id).order_by(Incident.created_at)
+            select(Incident)
+            .where(Incident.shift_id == shift.id)
+            .options(selectinload(Incident.logged_by_user))
+            .order_by(Incident.created_at)
         )
     ).scalars().all()
     notes = (

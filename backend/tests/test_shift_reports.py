@@ -138,8 +138,8 @@ class TestBuildShiftReport:
         row = r["incidents"][0]
         assert set(row) == {
             "id", "created_at", "incident_type", "location_ref",
-            "status", "response_phase", "description",
-        }
+            "status", "response_phase", "description", "author",
+            }
         assert row["created_at"].startswith("2026-09-16T09:15")
 
     def test_handoff_notes_verbatim_with_author_and_time(self):
@@ -209,3 +209,96 @@ class TestEnumSerialization:
             now=_cdt(2026, 9, 16, 23, 59), timezone="America/Chicago",
         )
         assert rpt["incidents"][0]["status"] == "open"
+
+
+# ──────────────────────────────────────────────
+# v2: per-officer breakdown
+# ──────────────────────────────────────────────
+
+class SimpleIncident2(SimpleIncident):
+    def __init__(self, id, created_at, author=None, **kw):
+        super().__init__(id, created_at, **kw)
+        self.logged_by_user = SimpleUser(author) if author else None
+
+
+def _rpt(incidents):
+    return build_shift_report(
+        _shift(), incidents, [],
+        now=_cdt(2026, 9, 16, 23, 59), timezone="America/Chicago",
+    )
+
+
+class TestPerOfficerBreakdown:
+    def test_by_officer_totals_and_types(self):
+        r = _rpt([
+            SimpleIncident2(1, _cdt(2026, 9, 16, 7, 5), author="Officer Chen"),
+            SimpleIncident2(2, _cdt(2026, 9, 16, 8, 5), author="Officer Chen",
+                            incident_type="sitter"),
+            SimpleIncident2(3, _cdt(2026, 9, 16, 9, 5), author="Officer Murphy"),
+        ])
+        bo = r["stats"]["by_officer"]
+        assert len(bo) == 2
+        chen = next(o for o in bo if o["author"] == "Officer Chen")
+        murphy = next(o for o in bo if o["author"] == "Officer Murphy")
+        assert chen["total"] == 2 and chen["by_type"] == {"victim_of_violence": 1, "sitter": 1}
+        assert murphy["total"] == 1
+
+    def test_officers_sorted_by_total_desc_then_name(self):
+        r = _rpt([
+            SimpleIncident2(1, _cdt(2026, 9, 16, 7, 5), author="Zoe"),
+            SimpleIncident2(2, _cdt(2026, 9, 16, 7, 6), author="Adam"),
+            SimpleIncident2(3, _cdt(2026, 9, 16, 7, 7), author="Adam"),
+            SimpleIncident2(4, _cdt(2026, 9, 16, 7, 8), author="Adam"),
+        ])
+        authors = [o["author"] for o in r["stats"]["by_officer"]]
+        assert authors == ["Adam", "Zoe"]
+
+    def test_missing_author_lands_in_unknown(self):
+        r = _rpt([SimpleIncident2(1, _cdt(2026, 9, 16, 7, 5), author=None)])
+        bo = r["stats"]["by_officer"]
+        assert bo == [{"author": "Unknown", "total": 1,
+                       "by_type": {"victim_of_violence": 1}}]
+
+    def test_incident_rows_carry_author(self):
+        r = _rpt([SimpleIncident2(1, _cdt(2026, 9, 16, 7, 5), author="Officer Chen")])
+        assert r["incidents"][0]["author"] == "Officer Chen"
+
+    def test_by_officer_sums_to_total(self):
+        r = _rpt([
+            SimpleIncident2(i, _cdt(2026, 9, 16, 7, i), author=f"O{i % 2}")
+            for i in range(1, 8)
+        ])
+        assert sum(o["total"] for o in r["stats"]["by_officer"]) == r["stats"]["total"] == 7
+
+
+class TestPdfCarriesBreakdown:
+    def test_pdf_renders_with_by_officer(self):
+        """Shared payload means the PDF must survive (and lay out) v2 stats."""
+        import zlib
+        from reports.pdf import render_shift_report_pdf
+
+        r = _rpt([
+            SimpleIncident2(1, _cdt(2026, 9, 16, 7, 5), author="Officer Chen"),
+            SimpleIncident2(2, _cdt(2026, 9, 16, 8, 5), author="Officer Murphy"),
+        ])
+        pdf = render_shift_report_pdf(r)
+        assert pdf[:5] == b"%PDF-"
+        # reportlab writes page streams as ASCII85(Flate(content)) by
+        # default — peel both layers before searching for text.
+        import base64
+        import re as _re
+
+        text = b""
+        for m in _re.finditer(rb"stream\r?\n", pdf):
+            j = pdf.find(b"endstream", m.end())
+            blob = pdf[m.end():j].strip(b"\r\n")
+            try:
+                raw = zlib.decompress(blob)
+            except zlib.error:
+                try:
+                    raw = zlib.decompress(base64.a85decode(blob, adobe=True))
+                except Exception:
+                    continue
+            text += raw
+        assert b"By officer" in text
+        assert b"Officer Chen" in text and b"Officer Murphy" in text
