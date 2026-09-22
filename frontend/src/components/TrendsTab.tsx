@@ -503,7 +503,8 @@ export default function TrendsTab({
               }}
             >
               <option value="csv">CSV</option>
-              <option value="pdf">PDF</option>
+              {/* PDF hidden: /api/incidents/export.pdf is not implemented yet.
+                  Re-enable with the shift-report feature (see .hermes/plans). */}
             </select>
           </div>
 
