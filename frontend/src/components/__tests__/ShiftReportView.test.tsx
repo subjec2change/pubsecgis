@@ -9,7 +9,13 @@ vi.mock('../../api/endpoints');
 const REPORT: ShiftReport = {
   shift: { id: 3, date: '2026-09-16', code: 'EVE', start_time: '14:30', end_time: '23:00', in_progress: false },
   generated_at: '2026-09-22T11:00:00-05:00',
-  stats: { total: 2, by_type: { victim_of_violence: 1, patient_with_sitter: 1 } },
+  stats: {
+    total: 2, by_type: { victim_of_violence: 1, patient_with_sitter: 1 },
+    by_officer: [
+      { author: 'Officer Chen', total: 1, by_type: { victim_of_violence: 1 } },
+      { author: 'Officer Murphy', total: 1, by_type: { patient_with_sitter: 1 } },
+    ],
+  },
   timeline: [
     { label: '14:00', count: 0 },
     { label: '15:00', count: 2 },
@@ -17,9 +23,9 @@ const REPORT: ShiftReport = {
   incidents: [
     { id: 1, created_at: '2026-09-16T15:05:00-05:00', incident_type: 'victim_of_violence',
       location_ref: 'MAIN-LOBBY', status: 'resolved', response_phase: 'on_scene',
-      description: 'long detail text' },
+      description: 'long detail text', author: 'Officer Chen' },
     { id: 2, created_at: '2026-09-16T15:40:00-05:00', incident_type: 'patient_with_sitter',
-      location_ref: 'ICU-4W', status: 'open', response_phase: null, description: null },
+      location_ref: 'ICU-4W', status: 'open', response_phase: null, description: null, author: 'Officer Murphy' },
   ],
   handoff_notes: [
     { id: 9, note: 'elevator stalled', author: 'Officer Chen', created_at: '2026-09-16T22:45:00-05:00' },
@@ -47,7 +53,12 @@ describe('ShiftReportView', () => {
     expect(screen.getAllByText('Patient with Sitter').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('MAIN-LOBBY')).toBeInTheDocument();
     expect(screen.getByText('elevator stalled')).toBeInTheDocument();
-    expect(screen.getByText(/Officer Chen/)).toBeInTheDocument();
+    // v2 per-officer breakdown
+    expect(screen.getAllByText('Officer Chen').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Officer Murphy').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('By officer')).toBeInTheDocument();
+    // handoff row carries its own author line (breakdown table also shows Chen)
+    expect(screen.getByText(/22:45 — Officer Chen/)).toBeInTheDocument();
   });
 
   it('toggles incident description on row click', async () => {

@@ -184,6 +184,38 @@ export default function ShiftReportView() {
             </table>
           )}
 
+          {report.stats.by_officer.length > 0 && (
+            <>
+              <div style={section}>By officer</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={th}>Officer</th>
+                    <th style={{ ...th, textAlign: 'right' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.stats.by_officer.map((o) => (
+                    <Fragment key={o.author}>
+                      <tr>
+                        <td style={td}>{o.author}</td>
+                        <td style={{ ...td, textAlign: 'right', fontWeight: 700 }}>{o.total}</td>
+                      </tr>
+                      <tr>
+                        <td colSpan={2} style={{ ...td, color: 'var(--text-secondary)', fontSize: '0.55rem' }}>
+                          {Object.entries(o.by_type)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([t, n]) => `${LABEL(t)} × ${n}`)
+                            .join('  ·  ')}
+                        </td>
+                      </tr>
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
           <div style={section}>Reports by hour</div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 54 }}>
             {report.timeline.map((b) => {

@@ -236,7 +236,11 @@ export interface ShiftReport {
     in_progress: boolean;
   };
   generated_at: string;
-  stats: { total: number; by_type: Record<string, number> };
+  stats: {
+    total: number;
+    by_type: Record<string, number>;
+    by_officer: { author: string; total: number; by_type: Record<string, number> }[];
+  };
   timeline: { label: string; count: number }[];
   incidents: {
     id: number;
@@ -246,6 +250,7 @@ export interface ShiftReport {
     status: string;
     response_phase: string | null;
     description: string | null;
+    author: string;
   }[];
   handoff_notes: { id: number; note: string; author: string | null; created_at: string }[];
 }
