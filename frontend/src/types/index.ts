@@ -225,3 +225,27 @@ export interface FloorplanEntry {
   rotation: number;
   notes?: string | null;
 }
+
+export interface ShiftReport {
+  shift: {
+    id: number;
+    date: string;
+    code: string;
+    start_time: string;
+    end_time: string;
+    in_progress: boolean;
+  };
+  generated_at: string;
+  stats: { total: number; by_type: Record<string, number> };
+  timeline: { label: string; count: number }[];
+  incidents: {
+    id: number;
+    created_at: string;
+    incident_type: string;
+    location_ref: string;
+    status: string;
+    response_phase: string | null;
+    description: string | null;
+  }[];
+  handoff_notes: { id: number; note: string; author: string | null; created_at: string }[];
+}

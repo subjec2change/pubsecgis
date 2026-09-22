@@ -8,6 +8,7 @@ import type {
   HandoffNote,
   Location,
   FloorplanEntry,
+  ShiftReport,
 } from '../types';
 
 // Auth
@@ -162,5 +163,26 @@ export async function getFloorplans(q?: string): Promise<FloorplanEntry[]> {
   const res = await client.get<FloorplanEntry[]>('/floorplans', {
     params: q ? { q } : undefined,
   });
+  return res.data;
+}
+
+// Reports (lead/admin)
+export async function getShiftReport(date?: string, code?: string): Promise<ShiftReport> {
+  const params: Record<string, string> = {};
+  if (date && code) {
+    params.date = date;
+    params.code = code;
+  }
+  const res = await client.get<ShiftReport>('/reports/shift', { params });
+  return res.data;
+}
+
+export async function downloadShiftReportPdf(date?: string, code?: string): Promise<Blob> {
+  const params: Record<string, string> = { format: 'pdf' };
+  if (date && code) {
+    params.date = date;
+    params.code = code;
+  }
+  const res = await client.get<Blob>('/reports/shift', { params, responseType: 'blob' });
   return res.data;
 }

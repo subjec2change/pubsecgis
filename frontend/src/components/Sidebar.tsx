@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Incident, HandoffNote, ColorMapping } from '../types';
+import { useAuth } from '../context/AuthContext';
 import {
   getHandoffNotes,
   createHandoffNote,
@@ -8,6 +9,7 @@ import {
 } from '../api/endpoints';
 import { INCIDENT_TYPE_LABELS, DEFAULT_COLOR_MAP, SHIFTS } from '../types';
 import TrendsTab from './TrendsTab';
+import ShiftReportView from './ShiftReportView';
 
 const RESPONSE_PHASE_LABELS: Record<string, string> = {
   en_route: 'Officer en route',
@@ -65,7 +67,8 @@ export default function Sidebar({
   const [justifyIncident, setJustifyIncident] = useState<Incident | null>(null);
   const [justifyText, setJustifyText] = useState('');
   const [justifying, setJustifying] = useState(false);
-  const [activeTab, setActiveTab] = useState<'incidents' | 'trends'>('incidents');
+  const [activeTab, setActiveTab] = useState<'incidents' | 'trends' | 'reports'>('incidents');
+  const { user } = useAuth();
 
   const openJustify = (incident: Incident) => {
     setJustifyIncident(incident);
@@ -188,7 +191,9 @@ export default function Sidebar({
     <div className="sidebar" style={{ position: 'relative' }}>
       {/* Tab row */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-        {(['incidents', 'trends'] as const).map((tab) => (
+        {(
+          ['incidents', 'trends', ...((user?.role === 'lead' || user?.role === 'admin') ? ['reports'] : [])] as ('incidents' | 'trends' | 'reports')[]
+        ).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -208,7 +213,7 @@ export default function Sidebar({
               textTransform: 'uppercase',
             }}
           >
-            {tab === 'incidents' ? '📋 Incidents' : '📊 Trends & Reports'}
+            {tab === 'incidents' ? '📋 Incidents' : tab === 'trends' ? '📊 Trends' : '📄 Reports'}
           </button>
         ))}
       </div>
@@ -472,6 +477,13 @@ export default function Sidebar({
             filterStatus={filterStatus}
             onFilterStatusChange={onFilterStatusChange}
           />
+        </div>
+      )}
+
+      {/* Shift Report tab (lead/admin only — tab itself is role-gated) */}
+      {activeTab === 'reports' && (
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <ShiftReportView />
         </div>
       )}
 
