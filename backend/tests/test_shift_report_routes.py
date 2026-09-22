@@ -62,14 +62,19 @@ async def shift_with_data():
         db.add(shift)
         await db.commit()
         await db.refresh(shift)
-        admin = (await db.execute(select(User).where(User.role == "admin"))).scalars().first()
+        # CI's freshly-migrated DB has no users — create an ephemeral author.
+        author = User(username="zzz-test-reporter", display_name="ZZZ Reporter",
+                      role="admin", active=True)
+        db.add(author)
+        await db.commit()
+        await db.refresh(author)
         inc = Incident(shift_id=shift.id, incident_type="sitter",
                        location_ref="ZZZTEST-ROOM", description="zzz report incident",
-                       status="archived", logged_by=admin.id)
+                       status="archived", logged_by=author.id)
         db.add(inc)
         from models.database import HandoffNote
         note = HandoffNote(shift_id=shift.id, note="zzz handoff line",
-                           location_ref="ZZZTEST-ROOM", logged_by=admin.id)
+                           location_ref="ZZZTEST-ROOM", logged_by=author.id)
         db.add(note)
         await db.commit()
         await db.refresh(inc)
@@ -79,6 +84,7 @@ async def shift_with_data():
         await db.execute(delete(Incident).where(Incident.id == inc.id))
         await db.execute(delete(HN).where(HN.id == note.id))
         await db.execute(delete(Shift).where(Shift.id == shift.id))
+        await db.execute(delete(User).where(User.id == author.id))
         await db.commit()
         await engine.dispose()
 
