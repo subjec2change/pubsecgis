@@ -557,7 +557,8 @@ PUSECGIS_BACKUP_KEEP=14              # nightly dumps = 2 weeks of history
 ### Install the nightly timer
 
 ```bash
-sudo cp scripts/pusecgis-backup.service scripts/pusecgis-backup.timer /etc/systemd/system/
+sudo cp scripts/pusecgis-backup.service scripts/pusecgis-backup.timer \
+        scripts/pusecgis-backup-fail@.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now pusecgis-backup.timer
 systemctl list-timers pusecgis-backup.timer   # confirm it is scheduled
@@ -565,12 +566,28 @@ systemctl list-timers pusecgis-backup.timer   # confirm it is scheduled
 
 Run manually any time: `sudo /opt/pubsecgis/scripts/backup.sh`
 
-### Restore drill — run after install and monthly after
+A failed backup or drill appends one line to
+`/var/log/pubsecgis-backup-fail.log` — both units carry
+`OnFailure=pusecgis-backup-fail@%n.service`. The journal keeps the full error
+(`journalctl -u pusecgis-backup -n 50`).
+
+### Restore drill — automated monthly (and by hand any time)
 
 A backup you have not restored is a hope, not a backup. The drill restores
 the newest dump into a throwaway database in the same container and compares
 row counts of every table against the live one. It never touches the live
 data.
+
+Install the monthly drill (1st of each month, 03:30 — after the previous
+night's dump):
+
+```bash
+sudo cp scripts/pusecgis-drill.service scripts/pusecgis-drill.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now pusecgis-drill.timer
+```
+
+Run by hand any time:
 
 ```bash
 sudo PUSECGIS_DB_NAME=pusecgis /opt/pubsecgis/scripts/restore-drill.sh
@@ -601,6 +618,22 @@ Disk rotation only survives deleted files, not a dead disk or dead host.
 Copy the newest dump off the server at least weekly — rsync/scp to another
 machine, or `borg create` a borg repository from `/var/backups/pusecgis`.
 The drill above proves any copy is restorable.
+
+### Host notes — 10.112.106.17 (deploy host, 2026-09-23)
+
+This host deliberately differs from the defaults above:
+
+- Database is `pusecgis_dev` (the dev-named DB is the live one here; no
+  `pusecgis` DB exists). `/etc/default/pubsecgis` sets `PUSECGIS_DB_NAME=pusecgis_dev`.
+- The app runs from `~/PUBSECGIS` (home checkout, `uvicorn --reload` +
+  `vite` dev), not from `/opt/pubsecgis`. `/opt/pubsecgis/scripts/backup.sh`
+  and `restore-drill.sh` are symlinks into the checkout, so the units follow
+  the repo.
+- BACKUPS ARE ON-MACHINE ONLY (`/var/backups/pusecgis`). Disk rotation
+  survives deleted files, NOT a dead disk or dead host. An off-machine copy
+  was considered and declined on 2026-09-23. Until one exists, treat the
+  dump directory as single-copy: copy it out manually before any disk or
+  host change.
 
 ## Screen URLs
 

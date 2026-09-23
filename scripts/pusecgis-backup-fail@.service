@@ -1,0 +1,9 @@
+[Unit]
+# Template logger: OnFailure=pusecgis-backup-fail@%n.service on a failing
+# unit appends one line here. %i = name of the failed unit.
+Description=Log PUSECGIS backup/drill failure for %i
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/default/pubsecgis
+ExecStart=/bin/sh -c 'echo "$(date -u -Is) FAILURE unit=%i db=${PUSECGIS_DB_NAME:-unset} — inspect: systemctl status %i && journalctl -u %i -n 50" >> /var/log/pubsecgis-backup-fail.log'

@@ -1,5 +1,5 @@
 [Unit]
-Description=PUSECGIS PostGIS database backup (pg_dump + rotation)
+Description=PUSECGIS restore drill (throwaway DB, row-count compare)
 After=docker.service
 Requires=docker.service
 OnFailure=pusecgis-backup-fail@%n.service
@@ -7,4 +7,4 @@ OnFailure=pusecgis-backup-fail@%n.service
 [Service]
 Type=oneshot
 EnvironmentFile=-/etc/default/pubsecgis
-ExecStart=/opt/pubsecgis/scripts/backup.sh
+ExecStart=/opt/pubsecgis/scripts/restore-drill.sh
