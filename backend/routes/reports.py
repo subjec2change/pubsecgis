@@ -26,7 +26,7 @@ async def _load_report(db: AsyncSession, shift: Shift) -> dict:
         await db.execute(
             select(Incident)
             .where(Incident.shift_id == shift.id)
-            .options(selectinload(Incident.logged_by_user))
+            .options(selectinload(Incident.logged_by_user), selectinload(Incident.floorplan_version))
             .order_by(Incident.created_at)
         )
     ).scalars().all()

@@ -118,7 +118,11 @@ List incidents with optional filters. Archived incidents excluded by default.
     "updated_at": "2026-09-16T10:35:00Z",
     "archived_at": null,
     "latitude": 38.64718,
-    "longitude": -90.25780
+    "longitude": -90.25780,
+    "floorplan_version_id": 42,
+    "floorplan_x": 0.42,
+    "floorplan_y": 0.68,
+    "room_label": "ICU 3A"
   }
 ]
 ```
@@ -258,6 +262,32 @@ Return the full list of available response phases with display labels. No auth r
 ```
 
 **9 response phases total.**
+
+---
+
+## Floorplans and incident-local pins
+
+### `GET /api/floorplans`
+
+Search active registry-backed floorplan sheets. Optional `q`, `building_id`, and `include_inactive` filters are supported. Each response includes the current immutable version metadata.
+
+### `POST /api/floorplans` / `DELETE /api/floorplans/{floor_id}`
+
+Admin-only registry management. Creating a sheet creates immutable version 1; deleting removes the registry row without deleting the served image.
+
+### `GET /api/incidents/{incident_id}/floorplan-history`
+
+Lead/admin-only history of prior local pin states, including exact floorplan version, normalized coordinates, room label, actor, reason, and timestamp.
+
+Incident create/update payloads support `floorplan_version_id`, normalized `floorplan_x`/`floorplan_y` in [0,1], optional `room_label`, and `pin_reason`. Pin changes preserve the previous state and require a non-empty reason.
+
+---
+
+## Shift reports
+
+### `GET /api/reports/shift`
+
+Lead/admin-only report for a selected `date` + `code`, or the most recently ended shift when neither is supplied. Use `format=pdf` for a PDF download. Reports include totals, per-type and per-officer breakdowns, timeline data, handoff notes, and floorplan pin detail.
 
 ---
 

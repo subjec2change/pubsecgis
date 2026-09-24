@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from models.database import get_session, Floorplan
+from models.database import get_session, Floorplan, FloorplanVersion
 from models.schemas import FloorplanResponse, FloorplanCreate
 from dependencies import require_role
 
@@ -17,7 +18,7 @@ async def list_floorplans(
     db: AsyncSession = Depends(get_session),
 ):
     """Floor-plan sheet registry for the map overlay picker."""
-    stmt = select(Floorplan)
+    stmt = select(Floorplan).options(selectinload(Floorplan.versions))
     if not include_inactive:
         stmt = stmt.where(Floorplan.active.is_(True))
     if building_id:
@@ -63,6 +64,16 @@ async def create_floorplan(
         raise HTTPException(status_code=422, detail="bounds must be south<north and west<east")
     fp = Floorplan(**payload.model_dump())
     db.add(fp)
+    await db.flush()
+    version = FloorplanVersion(
+        floorplan_id=fp.id, version=1, campus=fp.campus, building=fp.building,
+        building_id=fp.building_id, floor_name=fp.floor_name, image=fp.image,
+        south=fp.south, west=fp.west, north=fp.north, east=fp.east,
+        rotation=fp.rotation,
+    )
+    db.add(version)
+    await db.flush()
+    fp.current_version_id = version.id
     await db.commit()
     await db.refresh(fp)
     return FloorplanResponse.from_orm_floorplan(fp)

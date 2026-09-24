@@ -19,7 +19,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
 from sqlalchemy import select  # noqa: E402
-from models.database import async_session, Floorplan  # noqa: E402
+from sqlalchemy.orm import selectinload
+from models.database import async_session, Floorplan, FloorplanVersion  # noqa: E402
 
 
 async def upsert(rows, dry_run=False):
@@ -29,7 +30,7 @@ async def upsert(rows, dry_run=False):
             south, west = r["bounds"][0]
             north, east = r["bounds"][1]
             existing = (await session.execute(
-                select(Floorplan).where(Floorplan.floor_id == r["floor_id"])
+                select(Floorplan).options(selectinload(Floorplan.versions)).where(Floorplan.floor_id == r["floor_id"])
             )).scalar_one_or_none()
             if existing:
                 changed = (
@@ -40,6 +41,16 @@ async def upsert(rows, dry_run=False):
                     or float(existing.rotation or 0) != r["rotation"]
                 )
                 if changed:
+                    next_version = max((v.version for v in existing.versions), default=0) + 1
+                    version = FloorplanVersion(
+                        floorplan_id=existing.id, version=next_version,
+                        campus=r["campus"], building=r["building"], building_id=r["building_id"],
+                        floor_name=r["floor_name"], image=r["image"], south=south, west=west,
+                        north=north, east=east, rotation=r["rotation"],
+                    )
+                    session.add(version)
+                    await session.flush()
+                    existing.current_version_id = version.id
                     existing.image = r["image"]
                     existing.south, existing.west = south, west
                     existing.north, existing.east = north, east
@@ -53,13 +64,25 @@ async def upsert(rows, dry_run=False):
                 else:
                     skipped += 1
             else:
-                session.add(Floorplan(
+                new_floorplan = Floorplan(
                     floor_id=r["floor_id"], campus=r["campus"],
                     building=r["building"], building_id=r["building_id"],
                     floor_name=r["floor_name"], image=r["image"],
                     south=south, west=west, north=north, east=east,
                     rotation=r["rotation"],
-                ))
+                )
+                session.add(new_floorplan)
+                await session.flush()
+                version = FloorplanVersion(
+                    floorplan_id=new_floorplan.id, version=1,
+                    campus=new_floorplan.campus, building=new_floorplan.building,
+                    building_id=new_floorplan.building_id, floor_name=new_floorplan.floor_name,
+                    image=new_floorplan.image, south=south, west=west, north=north,
+                    east=east, rotation=new_floorplan.rotation,
+                )
+                session.add(version)
+                await session.flush()
+                new_floorplan.current_version_id = version.id
                 created += 1
                 print(f"  create {r['floor_id']}")
         if dry_run:

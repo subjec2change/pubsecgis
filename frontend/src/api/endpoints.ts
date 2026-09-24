@@ -9,6 +9,7 @@ import type {
   Location,
   FloorplanEntry,
   ShiftReport,
+  FloorplanPinHistory,
 } from '../types';
 
 // Auth
@@ -43,6 +44,10 @@ export async function createIncident(data: {
   response_phase?: string | undefined;
   latitude?: number;
   longitude?: number;
+  floorplan_version_id?: number | string;
+  floorplan_x?: number;
+  floorplan_y?: number;
+  room_label?: string;
 }): Promise<Incident> {
   // Convert shift name ("day"/"evening"/"night") to today's shift ID
   let shiftId: number;
@@ -86,6 +91,10 @@ export async function createIncident(data: {
     ...(data.response_phase && { response_phase: data.response_phase }),
     ...(data.latitude != null && { latitude: data.latitude }),
     ...(data.longitude != null && { longitude: data.longitude }),
+    ...(data.floorplan_version_id != null && { floorplan_version_id: data.floorplan_version_id }),
+    ...(data.floorplan_x != null && { floorplan_x: data.floorplan_x }),
+    ...(data.floorplan_y != null && { floorplan_y: data.floorplan_y }),
+    ...(data.room_label?.trim() && { room_label: data.room_label.trim() }),
   });
   return res.data;
 }
@@ -98,6 +107,13 @@ export async function updateIncident(
     description?: string;
     status?: string;
     response_phase?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    floorplan_version_id?: number | string | null;
+    floorplan_x?: number | null;
+    floorplan_y?: number | null;
+    room_label?: string | null;
+    pin_reason?: string;
   }
 ): Promise<Incident> {
   const res = await client.put<Incident>(`/incidents/${id}`, data);
@@ -163,6 +179,11 @@ export async function getFloorplans(q?: string): Promise<FloorplanEntry[]> {
   const res = await client.get<FloorplanEntry[]>('/floorplans', {
     params: q ? { q } : undefined,
   });
+  return res.data;
+}
+
+export async function getFloorplanPinHistory(id: string): Promise<FloorplanPinHistory[]> {
+  const res = await client.get<FloorplanPinHistory[]>(`/incidents/${id}/floorplan-history`);
   return res.data;
 }
 

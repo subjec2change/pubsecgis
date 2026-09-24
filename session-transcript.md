@@ -1,8 +1,7 @@
-# PUSECGIS — Session Transcript
+# PUSECGIS — Session Transcript (historical origin)
 
-> **Date:** 2026-09-02
-> **Session Type:** Brainstorming (shrimp-brainstorming skill)
-> **Project:** PUSECGIS — Public Safety Common Operating Picture for BJC Healthcare
+> **Original date:** 2026-09-02
+> **Current status:** This transcript records the brainstorming session that created the initial concept. It is not the current implementation roadmap. See `CONTEXT.md`, `PROJECT_RUNBOOK.md`, and `concept-brief.md` for the current scope and next steps.
 
 ---
 
@@ -34,9 +33,11 @@ User presented a vague idea for an "OpenSource GIS platform for mapping public s
 - `/home/thx1138/PUBSECGIS/research-ledger.md` — Research findings
 - `/home/thx1138/PUBSECGIS/mvp-spec.md` — Full MVP spec (draft 0.1)
 - `/home/thx1138/PUBSECGIS/pdf-spec.json` — PDF generation spec (for PDF creation)
-- `/home/thx1138/PUBSECGIS/pusecgis-mvp.pdf` — Generated PDF (pending creation)
+- `/home/thx1138/PUBSECGIS/pusecgis-mvp.pdf` — Generated PDF version of the historical MVP spec
 
-## Next Steps (When Resuming)
+## Archived next steps
+
+The checklist below is retained as a historical record of the discovery session. It has been superseded by the current options in `PROJECT_RUNBOOK.md`.
 
 1. Review MVP spec draft 0.1 — adjust, add, remove features
 2. Gather floor plan PDFs — Barnes-Jewish main campus

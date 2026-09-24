@@ -2,7 +2,8 @@
 
 > **For agentic workers:** Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the broken floorplan placeholder rectangles in OfficerMap with a working two-step building/floor dropdown, dynamic overlay of real floorplan images at their geographic bounds, and map `fitBounds` on selection.
+> **Status:** Historical implementation plan — superseded by registry-backed floorplans and immutable incident pin versions
+> **Superseded by:** current implementation in `backend/`, `frontend/`, `database/migrations/002_floorplans.sql`, and `003_incident_floorplan_pins.sql`
 
 **Architecture:** Static JSON file (`frontend/src/data/floorplans.json`) defines the building/floor hierarchy. A new `FloorplanSelector.tsx` component renders the two-step dropdown. `OfficerMap.tsx` listens to floor selection events, manages an `L.imageOverlay` layer, and calls `map.fitBounds()` on selection. No backend changes — all frontend.
 

@@ -72,5 +72,7 @@ jobs:
             -f ../database/migrations/001_initial_schema.sql
           psql -h localhost -U pusecgis -d pusecgis_test -v ON_ERROR_STOP=1 \
             -f ../database/migrations/002_floorplans.sql
+          psql -h localhost -U pusecgis -d pusecgis_test -v ON_ERROR_STOP=1 \
+            -f ../database/migrations/003_incident_floorplan_pins.sql
       - name: Tests
         run: python -m pytest tests -v

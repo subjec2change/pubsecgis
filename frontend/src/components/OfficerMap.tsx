@@ -6,6 +6,7 @@ import type { Incident, BroadcastIncident, ColorMapping, FloorplanEntry } from '
 import { DEFAULT_COLOR_MAP, INCIDENT_TYPE_LABELS } from '../types';
 import { getHeatmapData, getFloorplans } from '../api/endpoints';
 import FloorplanSelector from './FloorplanSelector';
+import { floorplanIncidentPins, normalizedFloorplanPoint } from '../utils/floorplan-pins';
 
 interface OfficerMapProps {
   incidents: Incident[];
@@ -13,6 +14,7 @@ interface OfficerMapProps {
   colorConfig: ColorMapping[];
   onIncidentClick?: (incident: Incident) => void;
   onMapClick?: (lat: number, lng: number) => void;
+  onFloorplanPinClick?: (pin: { floorplan_version_id: number | string; floorplan_x: number; floorplan_y: number }) => void;
   selectedIncidentId?: string | null;
   center?: [number, number];
   zoom?: number;
@@ -20,6 +22,8 @@ interface OfficerMapProps {
   onCurrentViewChange?: (view: 'streetmap' | 'floorplan') => void;
   onBuildingSelect?: (buildingId: string | null, buildingName?: string) => void;
   onFloorSelect?: (floorId: string | null, floorName?: string) => void;
+  /** Exact floorplan selection to show when editing an incident pin. */
+  floorplanSelection?: { entry: FloorplanEntry } | null;
   /** When true, map clicks create incidents instead of selecting */
   placementMode?: boolean;
   onPlacementModeToggle?: () => void;
@@ -31,6 +35,7 @@ export default function OfficerMap({
   colorConfig,
   onIncidentClick,
   onMapClick,
+  onFloorplanPinClick,
   selectedIncidentId,
   center = [38.6270, -90.2418],
   zoom = 17,
@@ -38,6 +43,7 @@ export default function OfficerMap({
   onCurrentViewChange,
   onBuildingSelect,
   onFloorSelect,
+  floorplanSelection,
   placementMode = false,
   onPlacementModeToggle,
 }: OfficerMapProps) {
@@ -47,12 +53,15 @@ export default function OfficerMap({
   const broadcastMarkersRef = useRef<Map<string, L.CircleMarker>>(new Map());
   const floorplanLayersRef = useRef<L.LayerGroup | null>(null);
   const floorplanImageRef = useRef<L.ImageOverlay | null>(null);
+  const floorplanIncidentLayersRef = useRef<L.LayerGroup | null>(null);
   const streetLayersRef = useRef<L.Layer | null>(null);
   const broadcastMarkerPositionsRef = useRef<Map<string, [number, number]>>(new Map());
   const activeHeatmapRef = useRef<L.Layer | null>(null);
   const heatmapLegendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const placementModeRef = useRef(placementMode);
   placementModeRef.current = placementMode;
+  const currentViewRef = useRef(currentView);
+  currentViewRef.current = currentView;
 
   // Latest center/zoom props without re-triggering the overlay effect
   const centerRef = useRef<[number, number]>(center);
@@ -104,6 +113,8 @@ export default function OfficerMap({
   // Store callbacks in refs so they don't trigger re-renders (same pattern as kiosk)
   const onMapClickRef = useRef(onMapClick);
   onMapClickRef.current = onMapClick;
+  const onFloorplanPinClickRef = useRef(onFloorplanPinClick);
+  onFloorplanPinClickRef.current = onFloorplanPinClick;
   const onIncidentClickRef = useRef(onIncidentClick);
   onIncidentClickRef.current = onIncidentClick;
   const onCurrentViewChangeRef = useRef(onCurrentViewChange);
@@ -141,6 +152,17 @@ export default function OfficerMap({
 
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
   const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
+
+  // Apply an exact incident snapshot when edit mode opens. This bypasses the
+  // registry's current-version row so historical pins remain on their original sheet.
+  useEffect(() => {
+    if (!floorplanSelection?.entry) return;
+    const entry = floorplanSelection.entry;
+    selectedEntryRef.current = entry;
+    setSelectedBuildingId(entry.building_id);
+    setSelectedFloorId(entry.floor_id);
+    onCurrentViewChangeRef.current?.('floorplan');
+  }, [floorplanSelection]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -322,6 +344,36 @@ export default function OfficerMap({
     map.flyToBounds(leafletBounds, { animate: true, duration: 0.8, padding: [40, 40] });
   }, [selectedFloorId, selectedBuildingId, currentView]);
 
+  // Floorplan-local pins use the exact selected version and normalized
+  // top-left coordinates. Geographic markers below remain independent.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (floorplanIncidentLayersRef.current) {
+      map.removeLayer(floorplanIncidentLayersRef.current);
+      floorplanIncidentLayersRef.current = null;
+    }
+    if (currentView !== 'floorplan' || !selectedEntryRef.current) return;
+    const entry = selectedEntryRef.current;
+    const version = entry.floorplan_version_id ?? entry.version_id ?? entry.current_version_id;
+    if (version == null) return;
+    const layer = L.layerGroup().addTo(map);
+    floorplanIncidentPins(incidents, version)
+      .forEach((incident) => {
+        const x = Math.max(0, Math.min(1, Number(incident.floorplan_x)));
+        const y = Math.max(0, Math.min(1, Number(incident.floorplan_y)));
+        const [[south, west], [north, east]] = entry.bounds;
+        const marker = L.marker([north - y * (north - south), west + x * (east - west)], {
+          icon: L.divIcon({ className: 'floorplan-incident-pin', html: `<span>${INCIDENT_TYPE_LABELS[incident.incident_type] || 'Incident'}</span>`, iconSize: [18, 18], iconAnchor: [9, 9] }),
+          zIndexOffset: 1000,
+        }).addTo(layer);
+        marker.bindPopup(`${INCIDENT_TYPE_LABELS[incident.incident_type] || incident.incident_type}${incident.room_label ? `<br/>${incident.room_label}` : ''}`);
+        marker.on('click', () => onIncidentClickRef.current?.(incident));
+      });
+    floorplanIncidentLayersRef.current = layer;
+    return () => { if (floorplanIncidentLayersRef.current === layer) { map.removeLayer(layer); floorplanIncidentLayersRef.current = null; } };
+  }, [incidents, selectedFloorId, currentView]);
+
   const colorMap = useMemo(() => {
     const map: Record<string, string> = { ...DEFAULT_COLOR_MAP };
     colorConfig.forEach((c) => {
@@ -365,9 +417,15 @@ export default function OfficerMap({
 
     // Use ref to avoid map recreation when onMapClick changes reference
     map.on('click', (e: L.LeafletMouseEvent) => {
-      if (onMapClickRef.current) {
-        onMapClickRef.current(e.latlng.lat, e.latlng.lng);
+      if (placementModeRef.current && currentViewRef.current === 'floorplan' && selectedEntryRef.current) {
+        const entry = selectedEntryRef.current;
+        const version = entry.floorplan_version_id ?? entry.version_id ?? entry.current_version_id;
+        if (version != null) {
+          onFloorplanPinClickRef.current?.({ floorplan_version_id: version, ...normalizedFloorplanPoint(e.latlng.lat, e.latlng.lng, entry.bounds) });
+          return;
+        }
       }
+      onMapClickRef.current?.(e.latlng.lat, e.latlng.lng);
     });
 
     // Add heatmap layer if initially enabled

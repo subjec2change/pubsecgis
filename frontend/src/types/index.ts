@@ -36,6 +36,37 @@ export interface Incident {
   logged_by_user?: { username: string; display_name?: string };
   latitude?: number;
   longitude?: number;
+  floorplan_version_id?: number | string | null;
+  floorplan_x?: number | null;
+  floorplan_y?: number | null;
+  room_label?: string | null;
+  floorplan_version?: FloorplanVersionMetadata | null;
+}
+
+export interface FloorplanVersionMetadata {
+  id: number;
+  floorplan_id: number;
+  version: number;
+  floor_id?: string | null;
+  campus: string;
+  building: string;
+  building_id: string;
+  floor_name: string;
+  image: string;
+  bounds: [[number, number], [number, number]];
+  rotation: number;
+}
+
+export interface FloorplanPinHistory {
+  id: number;
+  incident_id: number;
+  floorplan_version_id?: number | null;
+  floorplan_x?: number | null;
+  floorplan_y?: number | null;
+  room_label?: string | null;
+  actor_id: number;
+  reason?: string | null;
+  created_at: string;
 }
 
 export interface BroadcastIncident {
@@ -224,6 +255,11 @@ export interface FloorplanEntry {
   bounds: [[number, number], [number, number]];
   rotation: number;
   notes?: string | null;
+  /** Database identity of the currently rendered immutable version. */
+  current_version_id?: number | string;
+  /** Immutable identity of the rendered floorplan version. */
+  floorplan_version_id?: number | string;
+  version_id?: number | string;
 }
 
 export interface ShiftReport {

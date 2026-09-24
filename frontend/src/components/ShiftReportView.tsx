@@ -3,6 +3,14 @@ import type { ShiftReport } from '../types';
 import { getShiftReport, downloadShiftReportPdf } from '../api/endpoints';
 import { INCIDENT_TYPE_LABELS } from '../types';
 
+type ReportIncident = ShiftReport['incidents'][number] & {
+  room_label?: string | null;
+  floorplan_version_id?: number | string | null;
+  floorplan_x?: number | null;
+  floorplan_y?: number | null;
+  floorplan?: { id: number | string; version: number; campus: string; building: string; building_id: string; floor_name: string } | null;
+};
+
 const LABEL = (t: string) =>
   (INCIDENT_TYPE_LABELS as Record<string, string>)[t] || t.replace(/_/g, ' ');
 
@@ -252,7 +260,9 @@ export default function ShiftReportView() {
                 </tr>
               </thead>
               <tbody>
-                {report.incidents.map((r) => (
+                {report.incidents.map((incident) => {
+                  const r = incident as ReportIncident;
+                  return (
                   <Fragment key={r.id}>
                     <tr
                       onClick={() => toggle(r.id)}
@@ -265,15 +275,23 @@ export default function ShiftReportView() {
                       <td style={td}>{r.status}</td>
                       <td style={td}>{r.response_phase || '—'}</td>
                     </tr>
-                    {expanded.has(r.id) && r.description && (
+                    {expanded.has(r.id) && (r.description || r.room_label || r.floorplan || r.floorplan_version_id != null) && (
                       <tr>
                         <td colSpan={5} style={{ ...td, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                          {r.description}
+                          {r.description && <div>{r.description}</div>}
+                          {(r.room_label || r.floorplan) && (
+                            <div style={{ fontStyle: 'normal', marginTop: 3 }}>
+                              {r.room_label && <span>Room: {r.room_label}</span>}
+                              {r.floorplan && <span style={{ marginLeft: 8 }}>Floorplan: {r.floorplan.campus} / {r.floorplan.building} / {r.floorplan.floor_name} (v{r.floorplan.version})</span>}
+                              {r.floorplan_x != null && r.floorplan_y != null && <span style={{ marginLeft: 8 }}>Pin: ({r.floorplan_x}, {r.floorplan_y})</span>}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )}
                   </Fragment>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}

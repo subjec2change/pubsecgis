@@ -1,7 +1,11 @@
 # PUSECGIS — Concept Brief
 
-> **Status:** MVP scope locked
-> **Last updated:** 2026-09-02
+> **Status:** Current scope and implementation baseline
+> **Last updated:** 2026-09-24
+
+## Current implementation state
+
+PUSECGIS is an internal Barnes-Jewish Hospital Public Safety Common Operating Picture. Phase 1 core operations are implemented; Phase 2 analytics, reports, and the versioned floorplan registry/pinning system are implemented in the current branch. The remaining Phase 2 capability is duress CSV import, which is blocked on a representative MTF export. Other-campus floorplans are blocked on source PDFs and surveyed footprint coordinates.
 
 ## Current thesis
 
@@ -81,7 +85,14 @@ PUSECGIS is an **internal Common Operating Picture (COP) tool** for BJC Healthca
 - ED desk screens
 - Main control room (if applicable)
 
-## Out of scope (MVP)
+## Current decisions and next options
+
+- Floorplans are registry-backed and searchable through `GET /api/floorplans`; each sheet has immutable versions.
+- Incidents may carry one current floorplan-local pin (`floorplan_version_id`, normalized `floorplan_x/y`, optional room label) independent of geographic coordinates.
+- Pin corrections preserve history and require a reason; lead/admin history reads are gated.
+- Shift Report v2 includes per-officer breakdowns and floorplan detail in the report detail/appendix while preserving the lean incident table.
+- Current next options: (1) obtain a sample duress CSV and implement/import-test the parser, (2) install and drill production backups, (3) perform live visual QA of floorplan pin placement/reassignment, or (4) schedule mobile/officer field UX as a separate Phase 3 decision.
+
 - Real-time duress alarm API integration (CSV dump in Phase 2)
 - CAD/radio system integration
 - Mobile app (web UI only)

@@ -94,9 +94,14 @@ class Incident(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     archived_at = Column(DateTime(timezone=True), nullable=True)
+    floorplan_version_id = Column(BigInteger, ForeignKey("floorplan_versions.id", ondelete="RESTRICT"), nullable=True)
+    floorplan_x = Column(Numeric(10, 8), nullable=True)
+    floorplan_y = Column(Numeric(10, 8), nullable=True)
+    room_label = Column(String(120), nullable=True)
 
     shift = relationship("Shift", back_populates="incidents")
     logged_by_user = relationship("User", back_populates="incidents_logged")
+    floorplan_version = relationship("FloorplanVersion")
 
 
 class HandoffNote(Base):
@@ -130,3 +135,38 @@ class Floorplan(Base):
     notes = Column(TextType)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    current_version_id = Column(BigInteger, ForeignKey("floorplan_versions.id", ondelete="RESTRICT"), nullable=True)
+    versions = relationship("FloorplanVersion", back_populates="floorplan", foreign_keys="FloorplanVersion.floorplan_id", order_by="FloorplanVersion.version")
+
+
+class FloorplanVersion(Base):
+    __tablename__ = "floorplan_versions"
+    id = Column(BigInteger, primary_key=True, index=True)
+    floorplan_id = Column(BigInteger, ForeignKey("floorplans.id", ondelete="CASCADE"), nullable=False)
+    version = Column(Integer, nullable=False)
+    campus = Column(String(120), nullable=False)
+    building = Column(String(120), nullable=False)
+    building_id = Column(String(60), nullable=False)
+    floor_name = Column(String(120), nullable=False)
+    image = Column(String(255), nullable=False)
+    south = Column(Numeric, nullable=False)
+    west = Column(Numeric, nullable=False)
+    north = Column(Numeric, nullable=False)
+    east = Column(Numeric, nullable=False)
+    rotation = Column(Numeric, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    floorplan = relationship("Floorplan", back_populates="versions", foreign_keys=[floorplan_id])
+
+
+class IncidentFloorplanPinHistory(Base):
+    __tablename__ = "incident_floorplan_pin_history"
+    id = Column(BigInteger, primary_key=True, index=True)
+    incident_id = Column(BigInteger, ForeignKey("incidents.id", ondelete="CASCADE"), nullable=False)
+    floorplan_version_id = Column(BigInteger, ForeignKey("floorplan_versions.id", ondelete="RESTRICT"), nullable=True)
+    floorplan_x = Column(Numeric(10, 8), nullable=True)
+    floorplan_y = Column(Numeric(10, 8), nullable=True)
+    room_label = Column(String(120), nullable=True)
+    actor_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    floorplan_version = relationship("FloorplanVersion")

@@ -1,9 +1,5 @@
 # PUSECGIS
 
-A OpenSource GIS platform for mapping public safety risks, emergency resources, and incident response across communities.
+> **Status:** Historical originating idea. The active scope is the internal Barnes-Jewish Hospital COP documented in `concept-brief.md` and `CONTEXT.md`.
 
-- Combine hazard, infrastructure, demographic, and historical incident data in multiple interactive maps.
-- Identify underserved areas and prioritize emergency facilities, evacuation routes, and interventions.
-- Enable reports and data from floor rounding via soom sitters alarms and elopment alerts allowing  authorized users to report, update, and validate incidents in real time.
-- Provide dashboards and exportable reports for preparedness planning and resource allocation.
--Likely small groups to manage or monitor CIP daily without having "too many hands in the pot"
+PUSECGIS began as a broad open-source GIS concept for mapping public-safety risks, resources, and incident response across communities. The project was intentionally narrowed to an internal BJH Public Safety operational tool before implementation.

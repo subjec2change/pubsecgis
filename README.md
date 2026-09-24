@@ -85,8 +85,8 @@ PUBSECGIS/
 │   │   │   ├── ViewSwitcher.tsx  # Officer / Broadcast toggle
 │   │   │   └── __tests__/        # Vitest component tests
 │   │   ├── context/AuthContext.tsx  # Auth state provider
-│   │   ├── data/floorplans.json   # Building/floor plan definitions
-│   │   ├── types/index.ts         # Shared TypeScript types
+│   │   ├── data/floorplans.json     # Legacy design reference; runtime registry is API-backed
+│   │   ├── types/index.ts            # Shared TypeScript types
 │   │   └── utils/incident-coords.ts  # Floorplan-to-map coordinate mapping
 │   ├── package.json
 │   └── vite.config.ts
@@ -140,13 +140,33 @@ All endpoints are prefixed with `/api`. OpenAPI auto-docs at `/docs`.
 | `DELETE` | `/api/incidents/{id}` | Admin | Delete an incident |
 | `GET` | `/api/incidents/response-phases` | None | Return available response phase options with labels |
 
+### Floorplans and incident-local pins
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/floorplans` | None | Search active registry-backed floorplan sheets; each row identifies its current immutable version |
+| `POST` | `/api/floorplans` | Admin | Register a floorplan sheet and create version 1 |
+| `DELETE` | `/api/floorplans/{floor_id}` | Admin | Deactivate/remove a floorplan registry row |
+| `GET` | `/api/incidents/{id}/floorplan-history` | Lead/Admin | Read immutable prior floorplan pin states |
+
+Incident create/update payloads may include an exact `floorplan_version_id`, normalized `floorplan_x`/`floorplan_y` coordinates, and an optional room label. Later pin changes preserve the previous state and require a reason.
+
+### Shift reports
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/reports/shift` | Lead/Admin | Return the selected or most recently ended shift report as JSON |
+| `GET` | `/api/reports/shift?date=YYYY-MM-DD&code=DAY&format=pdf` | Lead/Admin | Download the selected shift report as a PDF |
+
+Reports include incident totals, per-type and per-officer breakdowns, timeline data, handoff notes, and floorplan pin detail where present.
+
 ### Analytics
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `GET` | `/api/incidents/heatmap` | None | Return `{lat, lng, intensity}` points within radius for heatmap rendering |
 | `GET` | `/api/incidents/trends` | None | Time-series counts grouped weekly or monthly, with `by_type` breakdown |
-| `GET` | `/api/incidents/export.csv` | None | CSV download of incidents with optional date/status filters |
+| `GET` | `/api/incidents/export.csv` | Lead/Admin | CSV download of incidents with optional date/status filters |
 
 ### Broadcast (Read-Only)
 
@@ -159,14 +179,14 @@ All endpoints are prefixed with `/api`. OpenAPI auto-docs at `/docs`.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/shifts` | None | List shifts, optional `date` filter |
+| `GET` | `/api/shifts` | Bearer JWT | List shifts, optional `date` filter |
 | `POST` | `/api/shifts` | Bearer JWT | Get or create a shift by code (`DAY`, `EVE`, `NIGHT`) and date (idempotent) |
 
 ### Handoff Notes
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/handoff/notes` | None | List handoff notes, filter by `shift` or `date` |
+| `GET` | `/api/handoff/notes` | Bearer JWT | List handoff notes, filter by `shift` or `date` |
 | `POST` | `/api/handoff/notes` | Bearer JWT | Create a shift handoff note |
 
 ### Locations
@@ -284,8 +304,8 @@ See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for full systemd/Nginx/Chrome kiosk setu
 | Phase | Timeline | Status |
 |-------|----------|--------|
 | **Phase 1: MVP Core** | Weeks 1–3 | Implemented — incidents, shifts, users, handoff, officer UI, broadcast UI, kiosk mode, Docker |
-| **Phase 2: Enhancements** | Weeks 4–6 | Partial — heatmap overlay, trend charts, CSV export, floorplan system |
-| **Phase 3: Integration** | Weeks 7–10 | Planned — duress alarm API, CAD/radio integration, mobile-responsive UI, RBAC, audit logging |
+| **Phase 2: Enhancements** | Weeks 4–6 | Mostly implemented — heatmaps, trend charts, CSV export, Shift Reports v1/v2, registry-backed floorplans and incident-local pin history; duress CSV remains blocked on sample input |
+| **Phase 3: Integration** | Weeks 7–10 | Not started — duress alarm API, CAD/radio integration, mobile-responsive field UI, audit-log expansion |
 
 ## License
 

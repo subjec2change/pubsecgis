@@ -36,6 +36,21 @@ class SimpleIncident:
         self.status = status
         self.response_phase = response_phase
         self.description = description
+        self.floorplan_version_id = None
+        self.floorplan_x = None
+        self.floorplan_y = None
+        self.room_label = None
+        self.floorplan_version = None
+
+
+class SimpleFloorplanVersion:
+    def __init__(self, id=44, version=3, campus="BJH", building="North", floor_name="4W"):
+        self.id = id
+        self.version = version
+        self.campus = campus
+        self.building = building
+        self.building_id = "NORTH"
+        self.floor_name = floor_name
 
 
 class SimpleUser:
@@ -139,8 +154,22 @@ class TestBuildShiftReport:
         assert set(row) == {
             "id", "created_at", "incident_type", "location_ref",
             "status", "response_phase", "description", "author",
-            }
+            "floorplan_version_id", "floorplan_x", "floorplan_y", "room_label", "floorplan",
+        }
         assert row["created_at"].startswith("2026-09-16T09:15")
+
+    def test_incident_row_carries_floorplan_snapshot_and_pin(self):
+        inc = SimpleIncident(7, _cdt(2026, 9, 16, 9, 15), description=None)
+        inc.floorplan_version_id = 44
+        inc.floorplan_x, inc.floorplan_y, inc.room_label = 0.25, 0.75, "Room 401"
+        inc.floorplan_version = SimpleFloorplanVersion()
+        row = build_shift_report(_shift(), [inc], [], now=_cdt(2026, 9, 16, 23, 59))["incidents"][0]
+        assert row["room_label"] == "Room 401"
+        assert row["floorplan_x"] == 0.25 and row["floorplan_y"] == 0.75
+        assert row["floorplan"] == {
+            "id": 44, "version": 3, "campus": "BJH", "building": "North",
+            "building_id": "NORTH", "floor_name": "4W",
+        }
 
     def test_handoff_notes_verbatim_with_author_and_time(self):
         notes = [SimpleNote(1, "  Elevator stalled 3rd flr.  ", _cdt(2026, 9, 16, 14, 45))]
@@ -302,3 +331,22 @@ class TestPdfCarriesBreakdown:
             text += raw
         assert b"By officer" in text
         assert b"Officer Chen" in text and b"Officer Murphy" in text
+
+    def test_pdf_appendix_includes_pinned_incident_without_description_and_escapes_text(self):
+        import base64, re, zlib
+        from reports.pdf import render_shift_report_pdf
+        inc = SimpleIncident(9, _cdt(2026, 9, 16, 7, 5), description=None, location_ref="<unsafe>")
+        inc.floorplan_version_id = 44
+        inc.floorplan_x, inc.floorplan_y, inc.room_label = 0.1, 0.2, "Room <A>"
+        inc.floorplan_version = SimpleFloorplanVersion()
+        text = b""
+        pdf = render_shift_report_pdf(_rpt([inc]))
+        for m in re.finditer(rb"stream\r?\n", pdf):
+            j = pdf.find(b"endstream", m.end()); blob = pdf[m.end():j].strip(b"\r\n")
+            try: raw = zlib.decompress(blob)
+            except zlib.error:
+                try: raw = zlib.decompress(base64.a85decode(blob, adobe=True))
+                except Exception: continue
+            text += raw
+        assert b"Appendix" in text and b"Room <" in text and b">" in text
+        assert b"<unsafe>" in text

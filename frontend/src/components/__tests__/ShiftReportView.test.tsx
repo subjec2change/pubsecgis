@@ -25,7 +25,9 @@ const REPORT: ShiftReport = {
       location_ref: 'MAIN-LOBBY', status: 'resolved', response_phase: 'on_scene',
       description: 'long detail text', author: 'Officer Chen' },
     { id: 2, created_at: '2026-09-16T15:40:00-05:00', incident_type: 'patient_with_sitter',
-      location_ref: 'ICU-4W', status: 'open', response_phase: null, description: null, author: 'Officer Murphy' },
+      location_ref: 'ICU-4W', status: 'open', response_phase: null, description: null, author: 'Officer Murphy',
+      room_label: 'Room 410', floorplan_version_id: 44, floorplan_x: 0.25, floorplan_y: 0.75,
+      floorplan: { id: 44, version: 3, campus: 'BJH', building: 'North', building_id: 'NORTH', floor_name: '4W' } } as ShiftReport['incidents'][number],
   ],
   handoff_notes: [
     { id: 9, note: 'elevator stalled', author: 'Officer Chen', created_at: '2026-09-16T22:45:00-05:00' },
@@ -68,6 +70,14 @@ describe('ShiftReportView', () => {
     expect(screen.queryByText('long detail text')).not.toBeInTheDocument();
     fireEvent.click(row.closest('tr')!);
     expect(screen.getByText('long detail text')).toBeInTheDocument();
+  });
+
+  it('expands incident room and immutable floorplan details even when description is empty', async () => {
+    vi.mocked(endpoints.getShiftReport).mockResolvedValue(REPORT);
+    render(<ShiftReportView />);
+    fireEvent.click((await screen.findByText('ICU-4W')).closest('tr')!);
+    expect(screen.getByText('Room: Room 410')).toBeInTheDocument();
+    expect(screen.getByText(/Floorplan: BJH \/ North \/ 4W \(v3\)/)).toBeInTheDocument();
   });
 
   it('shows live snapshot badge for in-progress shift', async () => {

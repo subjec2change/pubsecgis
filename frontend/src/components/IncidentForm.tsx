@@ -14,6 +14,10 @@ interface IncidentFormProps {
   preSelectedFloor?: string | null;
   /** Optional map-click coordinates to include in the submission payload */
   coordinates?: { latitude: number; longitude: number } | null;
+  /** Optional normalized pin on the selected floorplan. */
+  floorplanPin?: { floorplan_version_id: number | string; floorplan_x: number; floorplan_y: number } | null;
+  /** Optional callback to start map repositioning while editing. */
+  onRequestPinPlacement?: () => void;
 }
 
 export default function IncidentForm({
@@ -25,6 +29,8 @@ export default function IncidentForm({
   preSelectedBuilding,
   preSelectedFloor,
   coordinates,
+  floorplanPin,
+  onRequestPinPlacement,
 }: IncidentFormProps) {
   const [shift, setShift] = useState(initialShift || 'day');
   const [incidentType, setIncidentType] = useState<IncidentType>(
@@ -42,6 +48,10 @@ export default function IncidentForm({
   const [responsePhase, setResponsePhase] = useState<string | null>(
     editIncident?.response_phase || null
   );
+  const [roomLabel, setRoomLabel] = useState(editIncident?.room_label || '');
+  const [pinReason, setPinReason] = useState('');
+  const [clearPin, setClearPin] = useState(false);
+
 
   useEffect(() => {
     if (editIncident) {
@@ -50,6 +60,9 @@ export default function IncidentForm({
       setDescription(editIncident.description || '');
       setStatus(editIncident.status);
       setResponsePhase(editIncident.response_phase ?? null);
+      setRoomLabel(editIncident.room_label || '');
+      setPinReason('');
+      setClearPin(false);
       setLocationQuery('');
     }
   }, [editIncident]);
@@ -94,6 +107,26 @@ export default function IncidentForm({
     setSaving(true);
     setError(null);
     try {
+      if (!editIncident && preSelectedFloor && !floorplanPin) {
+        setError('Place the incident on the selected floorplan before saving.');
+        setSaving(false);
+        return;
+      }
+      const pinChanged = !!editIncident && (
+        clearPin ||
+        (!!floorplanPin !== (editIncident.floorplan_version_id != null)) ||
+        (floorplanPin != null && (
+          String(floorplanPin.floorplan_version_id) !== String(editIncident.floorplan_version_id) ||
+          floorplanPin.floorplan_x !== editIncident.floorplan_x ||
+          floorplanPin.floorplan_y !== editIncident.floorplan_y ||
+          roomLabel.trim() !== (editIncident.room_label || '').trim()
+        ))
+      );
+      if (editIncident && pinChanged && !pinReason.trim()) {
+        setError('A reason is required when changing or clearing a floorplan pin.');
+        setSaving(false);
+        return;
+      }
       if (editIncident) {
         await updateIncident(editIncident.id, {
           incident_type: incidentType,
@@ -102,6 +135,7 @@ export default function IncidentForm({
           status: status,
           response_phase: responsePhase,
           ...(coordinates && { latitude: coordinates.latitude, longitude: coordinates.longitude }),
+          ...(pinChanged ? (!floorplanPin || clearPin ? { floorplan_version_id: null, floorplan_x: null, floorplan_y: null, room_label: null, pin_reason: pinReason.trim() } : { ...floorplanPin, room_label: roomLabel.trim() || null, pin_reason: pinReason.trim() }) : {}),
         });
       } else {
         await createIncident({
@@ -112,6 +146,7 @@ export default function IncidentForm({
           status: status,
           response_phase: responsePhase || undefined,
           ...(coordinates && { latitude: coordinates.latitude, longitude: coordinates.longitude }),
+          ...(floorplanPin && { ...floorplanPin, room_label: roomLabel.trim() || undefined }),
         });
       }
       onSubmit();
@@ -282,6 +317,37 @@ export default function IncidentForm({
               <div style={{ padding: '8px 12px', background: '#f3f4f6', borderRadius: 4, fontFamily: 'monospace', fontSize: '0.85rem' }}>
                 Lat: {coordinates.latitude.toFixed(4)} · Lng: {coordinates.longitude.toFixed(4)}
               </div>
+            </div>
+          )}
+
+          {floorplanPin && (
+            <div className="form-group">
+              <label htmlFor="room-label">Room / Area (optional)</label>
+              <input id="room-label" type="text" value={roomLabel} onChange={(e) => setRoomLabel(e.target.value)} maxLength={120} placeholder="e.g. ICU 3A" />
+              <small>Pin placed on the selected floorplan.</small>
+              {editIncident && onRequestPinPlacement && (
+                <button type="button" className="btn-sm" onClick={onRequestPinPlacement} style={{ marginTop: 8 }}>
+                  Reposition on floorplan
+                </button>
+              )}
+            </div>
+          )}
+
+          {editIncident && !floorplanPin && onRequestPinPlacement && !clearPin && (
+            <div className="form-group">
+              <button type="button" className="btn-sm" onClick={onRequestPinPlacement}>
+                Assign to a floorplan
+              </button>
+            </div>
+          )}
+
+          {editIncident && (
+            <div className="form-group">
+              <label htmlFor="pin-change-reason">Pin change reason</label>
+              <input id="pin-change-reason" value={pinReason} onChange={(e) => setPinReason(e.target.value)} placeholder="Why is this pin being changed?" />
+              {editIncident.floorplan_version_id != null && (
+                <label><input type="checkbox" checked={clearPin} onChange={(e) => setClearPin(e.target.checked)} /> Clear existing floorplan pin</label>
+              )}
             </div>
           )}
 

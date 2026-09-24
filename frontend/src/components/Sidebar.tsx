@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Incident, HandoffNote, ColorMapping } from '../types';
+import type { Incident, HandoffNote, ColorMapping, FloorplanPinHistory } from '../types';
 import { useAuth } from '../context/AuthContext';
 import {
   getHandoffNotes,
   createHandoffNote,
+  getFloorplanPinHistory,
   deleteIncident as apiDeleteIncident,
   updateIncident as apiUpdateIncident,
 } from '../api/endpoints';
@@ -68,6 +69,8 @@ export default function Sidebar({
   const [justifyText, setJustifyText] = useState('');
   const [justifying, setJustifying] = useState(false);
   const [activeTab, setActiveTab] = useState<'incidents' | 'trends' | 'reports'>('incidents');
+  const [pinHistory, setPinHistory] = useState<FloorplanPinHistory[]>([]);
+  const [historyIncidentId, setHistoryIncidentId] = useState<string | null>(null);
   const { user } = useAuth();
 
   const openJustify = (incident: Incident) => {
@@ -153,6 +156,12 @@ export default function Sidebar({
 
   const handleEditIncident = (incident: Incident) => {
     onIncidentEdit(incident);
+  };
+
+  const showPinHistory = async (incident: Incident) => {
+    setHistoryIncidentId(incident.id);
+    try { setPinHistory(await getFloorplanPinHistory(incident.id)); }
+    catch (err) { console.error('Failed to load floorplan pin history:', err); setPinHistory([]); }
   };
 
   const filteredIncidents = incidents
@@ -337,6 +346,7 @@ export default function Sidebar({
                       >
                         ✏️ Edit
                       </button>
+                      {(user?.role === 'lead' || user?.role === 'admin') && <button className="btn-sm" onClick={() => showPinHistory(incident)}>Pin history</button>}
                       <button
                         className="btn-sm btn-delete"
                         onClick={() => handleDeleteIncident(incident.id)}
@@ -484,6 +494,20 @@ export default function Sidebar({
       {activeTab === 'reports' && (
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <ShiftReportView />
+        </div>
+      )}
+
+      {/* Justify popup (always visible) */}
+      {historyIncidentId && (user?.role === 'lead' || user?.role === 'admin') && (
+        <div className="justify-popup-overlay" onClick={() => setHistoryIncidentId(null)}>
+          <div className="justify-popup" onClick={(e) => e.stopPropagation()}>
+            <h3>Floorplan pin history</h3>
+            {pinHistory.length === 0 ? <p>No pin changes recorded.</p> : pinHistory.map((row) => <div key={row.id} style={{ padding: 8, borderBottom: '1px solid var(--border)' }}>
+              <div>{new Date(row.created_at).toLocaleString()} · {row.reason || 'Initial placement'}</div>
+              <small>Version {row.floorplan_version_id ?? 'cleared'} · ({row.floorplan_x ?? '—'}, {row.floorplan_y ?? '—'}) {row.room_label || ''}</small>
+            </div>)}
+            <button className="btn-cancel" onClick={() => setHistoryIncidentId(null)}>Close</button>
+          </div>
         </div>
       )}
 

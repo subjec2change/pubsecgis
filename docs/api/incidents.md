@@ -44,7 +44,11 @@ Create a new incident. Requires authentication.
   "status": "open",
   "response_phase": "en_route",
   "latitude": 38.64720,
-  "longitude": -90.25775
+  "longitude": -90.25775,
+  "floorplan_version_id": 42,
+  "floorplan_x": 0.42,
+  "floorplan_y": 0.68,
+  "room_label": "ICU 3A"
 }
 ```
 
@@ -149,6 +153,11 @@ Return the full list of available response phases with display labels. No auth r
 | `response_phase` | string \| null | No | `null` | Current response phase |
 | `latitude` | float \| null | No | `null` | Geographic latitude (-90 to 90) |
 | `longitude` | float \| null | No | `null` | Geographic longitude (-180 to 180) |
+| `floorplan_version_id` | integer \| null | No | `null` | Exact immutable floorplan version for a local pin |
+| `floorplan_x` | float \| null | No | `null` | Normalized horizontal coordinate in [0,1], left-to-right |
+| `floorplan_y` | float \| null | No | `null` | Normalized vertical coordinate in [0,1], top-to-bottom |
+| `room_label` | string \| null | No | `null` | Optional room or area label, max 120 characters |
+| `pin_reason` | string \| null | No | `null` | Required for later pin changes and resolved-incident corrections |
 
 **Valid incident types:** `victim_of_violence`, `problematic_patient`, `agitated_visitor`, `patient_with_sitter`, `elopment_patient`, `hardware_facility_issue`, `general_safety_concern`, `duress_alarm_call`
 
@@ -174,6 +183,10 @@ Same fields as `IncidentCreate` but all are **optional** (partial update).
 | `archived_at` | datetime \| null | When archived (null if active) |
 | `latitude` | float \| null | Geographic latitude (extracted from PostGIS `geom`) |
 | `longitude` | float \| null | Geographic longitude (extracted from PostGIS `geom`) |
+| `floorplan_version_id` | integer \| null | Exact immutable floorplan version for the current local pin |
+| `floorplan_x` / `floorplan_y` | float \| null | Normalized top-left-origin local coordinates |
+| `room_label` | string \| null | Optional room or area label |
+| `floorplan_version` | object \| null | Snapshot metadata for the exact rendered floorplan version |
 
 ### `GetResponsePhasesResponse`
 

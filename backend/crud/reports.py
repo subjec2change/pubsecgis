@@ -85,6 +85,21 @@ def build_shift_report(
             "response_phase": inc.response_phase,
             "description": inc.description,
             "author": author,
+            "floorplan_version_id": getattr(inc, "floorplan_version_id", None),
+            "floorplan_x": float(inc.floorplan_x) if getattr(inc, "floorplan_x", None) is not None else None,
+            "floorplan_y": float(inc.floorplan_y) if getattr(inc, "floorplan_y", None) is not None else None,
+            "room_label": getattr(inc, "room_label", None),
+            "floorplan": (
+                {
+                    "id": inc.floorplan_version.id,
+                    "version": inc.floorplan_version.version,
+                    "campus": inc.floorplan_version.campus,
+                    "building": inc.floorplan_version.building,
+                    "building_id": inc.floorplan_version.building_id,
+                    "floor_name": inc.floorplan_version.floor_name,
+                }
+                if getattr(inc, "floorplan_version", None) is not None else None
+            ),
         })
 
     note_rows = []

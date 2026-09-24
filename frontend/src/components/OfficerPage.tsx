@@ -5,7 +5,7 @@ import ViewSwitcher from './ViewSwitcher';
 import Sidebar from './Sidebar';
 import OfficerMap from './OfficerMap';
 import IncidentForm from './IncidentForm';
-import type { Incident, BroadcastIncident, ColorMapping } from '../types';
+import type { Incident, BroadcastIncident, ColorMapping, FloorplanEntry } from '../types';
 import {
   getIncidents,
   getBroadcastIncidents,
@@ -51,6 +51,8 @@ export default function OfficerPage() {
   // Map placement state (Task 3)
   const [placementMode, setPlacementMode] = useState(false);
   const [selectedCoords, setSelectedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [selectedFloorplanPin, setSelectedFloorplanPin] = useState<{ floorplan_version_id: number | string; floorplan_x: number; floorplan_y: number } | null>(null);
+  const [floorplanSelection, setFloorplanSelection] = useState<{ entry: FloorplanEntry } | null>(null);
 
   // Filters
   const [filterType, setFilterType] = useState('');
@@ -119,34 +121,55 @@ export default function OfficerPage() {
     loadIncidents();
     setFormOpen(false);
     setEditingIncident(null);
+    setFloorplanSelection(null);
     setPlacementMode(false);
     setSelectedCoords(null);
+    setSelectedFloorplanPin(null);
   };
 
   const handleIncidentUpdated = () => {
     loadIncidents();
     setFormOpen(false);
     setEditingIncident(null);
+    setFloorplanSelection(null);
     setPlacementMode(false);
     setSelectedCoords(null);
+    setSelectedFloorplanPin(null);
   };
 
   // Handle map clicks for placement (Task 3)
   const handleMapClick = (lat?: number, lng?: number) => {
     if (lat != null && lng != null && placementMode) {
-      // User clicked the map while in placement mode
       setSelectedCoords({ latitude: lat, longitude: lng });
       setFormOpen(true);
-      setEditingIncident(null);
+      if (!editingIncident) setEditingIncident(null);
+      setPlacementMode(false);
     }
+  };
+
+  const handleFloorplanPinClick = (pin: { floorplan_version_id: number | string; floorplan_x: number; floorplan_y: number }) => {
+    if (!placementMode) return;
+    setSelectedFloorplanPin(pin);
+    setSelectedCoords(null);
+    setPlacementMode(false);
+    setFormOpen(true);
+    if (!editingIncident) setEditingIncident(null);
   };
 
   // Toggle placement mode
   const handleSetLocationOnMap = () => {
     setPlacementMode(true);
     setSelectedCoords(null);
+    setSelectedFloorplanPin(null);
     setFormOpen(true);
     setEditingIncident(null);
+  };
+
+  const handleRequestPinPlacement = () => {
+    setPlacementMode(true);
+    setSelectedCoords(null);
+    setSelectedFloorplanPin(null);
+    setFormOpen(false);
   };
 
   const handleCurrentViewChange = (view: 'streetmap' | 'floorplan') => {
@@ -163,6 +186,22 @@ export default function OfficerPage() {
 
   const handleIncidentEdit = (incident: Incident) => {
     setEditingIncident(incident);
+    setSelectedFloorplanPin(incident.floorplan_version_id != null && incident.floorplan_x != null && incident.floorplan_y != null
+      ? { floorplan_version_id: incident.floorplan_version_id, floorplan_x: incident.floorplan_x, floorplan_y: incident.floorplan_y }
+      : null);
+    setFloorplanSelection(incident.floorplan_version
+      ? { entry: {
+          floor_id: incident.floorplan_version.floor_id || `version-${incident.floorplan_version.id}`,
+          campus: incident.floorplan_version.campus,
+          building: incident.floorplan_version.building,
+          building_id: incident.floorplan_version.building_id,
+          floor_name: incident.floorplan_version.floor_name,
+          image: incident.floorplan_version.image,
+          bounds: incident.floorplan_version.bounds,
+          rotation: incident.floorplan_version.rotation,
+          floorplan_version_id: incident.floorplan_version.id,
+        } }
+      : null);
     setFormOpen(true);
   };
 
@@ -268,11 +307,13 @@ export default function OfficerPage() {
           colorConfig={colorConfig}
           onIncidentClick={handleIncidentSelect}
           onMapClick={handleMapClick}
+          onFloorplanPinClick={handleFloorplanPinClick}
           selectedIncidentId={selectedIncidentId}
           currentView={mapView}
           onCurrentViewChange={handleCurrentViewChange}
           onBuildingSelect={handleBuildingSelect}
           onFloorSelect={handleFloorSelect}
+          floorplanSelection={floorplanSelection}
           placementMode={placementMode}
           onPlacementModeToggle={() => setPlacementMode((m) => !m)}
         />
@@ -302,6 +343,8 @@ export default function OfficerPage() {
           preSelectedBuilding={selectedBuildingName}
           preSelectedFloor={selectedFloorName}
           coordinates={selectedCoords}
+          floorplanPin={selectedFloorplanPin}
+          onRequestPinPlacement={handleRequestPinPlacement}
         />
       )}
     </div>

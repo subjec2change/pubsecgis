@@ -17,6 +17,7 @@ from reportlab.platypus import (
 )
 
 from types import SimpleNamespace  # noqa: F401  (typing clarity for report dict)
+from xml.sax.saxutils import escape
 
 INK = colors.HexColor("#0b1219")
 MUTED = colors.HexColor("#5b6b7a")
@@ -122,17 +123,26 @@ def render_shift_report_pdf(report: dict) -> bytes:
         flow.append(Paragraph("None recorded.", ss["Meta"]))
 
     # Description appendix
-    described = [r for r in report["incidents"] if r["description"]]
-    if described:
+    appendix = [r for r in report["incidents"] if r["description"] or r.get("floorplan") or r.get("room_label") or r.get("floorplan_version_id")]
+    if appendix:
         flow.append(Paragraph("Appendix — incident descriptions", ss["Section"]))
-        for r in described:
+        for r in appendix:
+            fp = r.get("floorplan")
+            metadata = []
+            if r.get("room_label"):
+                metadata.append(f"room: {escape(str(r['room_label']))}")
+            if r.get("floorplan_x") is not None and r.get("floorplan_y") is not None:
+                metadata.append(f"pin: ({r['floorplan_x']}, {r['floorplan_y']})")
+            if fp:
+                metadata.append("floorplan: " + escape(" / ".join(str(fp[k]) for k in ("campus", "building", "floor_name", "version"))))
             flow.append(KeepTogether([
                 Paragraph(
-                    f"<b>#{r['id']}</b> · {r['created_at']} · {r['incident_type']} · {r['location_ref']}",
+                    f"<b>#{r['id']}</b> · {escape(r['created_at'])} · {escape(r['incident_type'])} · {escape(r['location_ref'])}"
+                    + (" · " + " · ".join(metadata) if metadata else ""),
                     ss["Meta"],
                 ),
                 Paragraph(
-                    r["description"].replace("&", "&amp;").replace("<", "&lt;"),
+                    escape(r["description"] or "(no description recorded)"),
                     ss["BodyText"],
                 ),
                 Spacer(1, 4),

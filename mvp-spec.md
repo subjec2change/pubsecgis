@@ -1,7 +1,7 @@
 # PUSECGIS MVP Spec — Draft 0.1
 
-> **Status:** Draft / Proposal
-> **Date:** 2026-09-02
+> **Status:** Historical MVP draft; current implementation status is tracked below.
+> **Last reviewed:** 2026-09-24
 > **Scope:** Barnes-Jewish Hospital Public Safety — Common Operating Picture
 
 ---
@@ -138,19 +138,19 @@
 ## 7. Implementation Phases
 
 ### Phase 1: MVP Core (Weeks 1–3)
-- [ ] PostgreSQL + PostGIS setup & seed data
-- [ ] FastAPI backend (Incidents, Shifts, Users, Handoff APIs)
-- [ ] Officer UI (map + incident entry + filter + handoff)
-- [ ] Broadcast UI (fullscreen map + sidebar + 30s auto-refresh)
-- [ ] Kiosk mode script (auto-fullscreen, auto-restart)
-- [ ] Deploy to BJC internal network
+- [x] PostgreSQL + PostGIS setup & seed data
+- [x] FastAPI backend (Incidents, Shifts, Users, Handoff APIs)
+- [x] Officer UI (map + incident entry + filter + handoff)
+- [x] Broadcast UI (fullscreen map + sidebar + 30s auto-refresh)
+- [x] Kiosk mode script (auto-fullscreen, auto-restart)
+- [x] Deploy to BJC internal network
 
 ### Phase 2: Enhancements (Weeks 4–6)
-- [ ] Duress alarm CSV import & parsing
-- [ ] Hotspot heatmap overlay
-- [ ] Floor plan overlay (PDF → static map base)
-- [ ] Weekly/monthly trend charts (leaderboard view)
-- [ ] Exportable reports (PDF/CSV)
+- [ ] Duress alarm CSV import & parsing — blocked on representative MTF export
+- [x] Hotspot heatmap overlay
+- [x] Floor plan overlay (registry-backed immutable versions and local incident pins)
+- [x] Weekly/monthly trend charts (leaderboard view)
+- [x] Exportable reports (PDF/CSV)
 
 ### Phase 3: Integration (Weeks 7–10)
 - [ ] Duress alarm system API integration (if available)
@@ -161,16 +161,29 @@
 
 ---
 
-## 8. Acceptance Criteria (MVP)
+## Current implementation status — 2026-09-24
 
-- [ ] Officers can log incidents (type, location, notes)
-- [ ] Incidents appear on map in correct colors
-- [ ] Broadcast screens show all active incidents with 30s auto-refresh
-- [ ] Broadcast screens display at 1920×1080 (no scroll needed for map)
-- [ ] Shift handoff notes are captured and visible per shift
-- [ ] 6 display targets can view broadcast simultaneously
-- [ ] All runs on BJC internal network, no internet dependency
-- [ ] CSV duress alarm import works (Phase 2)
+The original draft remains the historical scope baseline. The live implementation has advanced beyond the draft:
+
+- Phase 1 core: implemented and verified.
+- Phase 2 heatmaps, trends, CSV export, Shift Reports v1/v2: implemented and verified.
+- Floorplan registry and immutable versions: implemented for the currently imported BJH North sheets.
+- Incident-local floorplan pins: implemented in the current uncommitted feature; creation, exact-version rendering, edit/reassign, room labels, reasoned history, and report metadata are covered by tests.
+- Duress CSV import: blocked pending a representative MTF export.
+- Other-campus floorplans: blocked pending source PDFs and surveyed footprint coordinates.
+- Phase 3 integrations/mobile/audit expansion: not started.
+
+The draft acceptance criteria below should be read as the original MVP checklist; current evidence and open gaps are tracked in `PROJECT_RUNBOOK.md`.
+
+
+- [x] Officers can log incidents (type, location, notes)
+- [x] Incidents appear on map in correct colors
+- [x] Broadcast screens show all active incidents with 30s auto-refresh
+- [x] Broadcast screens display at 1920×1080 (no scroll needed for map)
+- [x] Shift handoff notes are captured and visible per shift
+- [x] 6 display targets can view broadcast simultaneously
+- [x] All runs on BJC internal network, no internet dependency
+- [ ] CSV duress alarm import works (Phase 2 — blocked on representative MTF export)
 
 ---
 
