@@ -58,7 +58,9 @@ PUBSECGIS/
 │   │   └── users.py               # User lookup helpers
 │   ├── routes/
 │   │   ├── auth.py                # POST /login, GET /me
-│   │   ├── incidents.py           # CRUD + response-phases endpoint
+│   │   ├── incidents.py           # CRUD + response-phases + pin history
+│   │   ├── floorplans.py          # Registry search and soft deactivation
+│   │   ├── reports.py             # Shift report JSON/PDF
 │   │   ├── analytics.py           # Heatmap, trends, CSV export
 │   │   ├── broadcast.py           # Read-only incidents for kiosk screens
 │   │   ├── handoff.py             # Shift handoff notes
@@ -87,12 +89,15 @@ PUBSECGIS/
 │   │   ├── context/AuthContext.tsx  # Auth state provider
 │   │   ├── data/floorplans.json     # Legacy design reference; runtime registry is API-backed
 │   │   ├── types/index.ts            # Shared TypeScript types
-│   │   └── utils/incident-coords.ts  # Floorplan-to-map coordinate mapping
+│   │   ├── utils/floorplan-pins.ts   # Version-filtered pins and HTML escaping
+│   │   └── utils/__tests__/          # Floorplan utility tests
 │   ├── package.json
 │   └── vite.config.ts
 ├── database/
 │   ├── migrations/
-│   │   └── 001_initial_schema.sql  # 4 tables: users, shifts, locations, incidents, handoff_notes
+│   │   ├── 001_initial_schema.sql  # Core tables and PostGIS
+│   │   ├── 002_floorplans.sql       # Floorplan registry
+│   │   └── 003_incident_floorplan_pins.sql # Immutable versions, pins, history
 │   └── seeds/
 │       └── 001_seed_data.sql       # Initial seed data
 ├── scripts/
@@ -136,8 +141,8 @@ All endpoints are prefixed with `/api`. OpenAPI auto-docs at `/docs`.
 |--------|------|------|-------------|
 | `GET` | `/api/incidents` | None | List incidents; filter by `status`, `type`, `date`, `location`, `shift` |
 | `POST` | `/api/incidents` | Bearer JWT | Create a new incident (type, location, description, lat/lng, response phase) |
-| `PUT` | `/api/incidents/{id}` | Lead/Admin | Update an incident's type, location, status, response phase |
-| `DELETE` | `/api/incidents/{id}` | Admin | Delete an incident |
+| `PUT` | `/api/incidents/{id}` | Lead/Admin or original author for a non-resolved incident | Update an incident's type, location, status, response phase |
+| `DELETE` | `/api/incidents/{id}?reason=...` | Admin | Archive an incident, clear its active pin, and preserve history with an audit reason |
 | `GET` | `/api/incidents/response-phases` | None | Return available response phase options with labels |
 
 ### Floorplans and incident-local pins

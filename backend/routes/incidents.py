@@ -13,6 +13,15 @@ from dependencies import get_current_user, require_role
 router = APIRouter()
 
 
+def _validate_resolved_correction(existing_status: str, update_data: IncidentUpdate) -> None:
+    if existing_status != "resolved":
+        return
+    if update_data.status is not None and update_data.status != "resolved":
+        raise HTTPException(status_code=422, detail="resolved incidents cannot be reopened")
+    if update_data.model_fields_set - {"pin_reason"} and not update_data.pin_reason:
+        raise HTTPException(status_code=422, detail="corrections to resolved incidents require a reason")
+
+
 @router.get("", response_model=list[IncidentResponse])
 async def list_incidents(
     status: str | None = Query(None),
@@ -81,9 +90,9 @@ async def update_incident_route(
         raise HTTPException(status_code=404, detail="Incident not found")
     if current_user.role not in ("lead", "admin") and (existing.logged_by != current_user.id or getattr(existing.status, "value", existing.status) == "resolved"):
         raise HTTPException(status_code=403, detail="Only the author may edit a non-resolved incident")
-    if current_user.role in ("lead", "admin") and getattr(existing.status, "value", existing.status) == "resolved":
-        if update_data.model_fields_set - {"pin_reason"} and not update_data.pin_reason:
-            raise HTTPException(status_code=422, detail="corrections to resolved incidents require a reason")
+    _validate_resolved_correction(
+        getattr(existing.status, "value", existing.status), update_data
+    )
     try:
         incident = await update_incident(
             db,
@@ -114,11 +123,16 @@ async def update_incident_route(
 @router.delete("/{incident_id}", status_code=204)
 async def delete_incident_route(
     incident_id: int,
+    reason: str = Query(..., min_length=1, max_length=2000),
     current_user: User = Depends(require_role("admin")),
     db: AsyncSession = Depends(get_session),
 ):
-    """Delete an incident (requires admin role)."""
-    deleted = await delete_incident(db, incident_id)
+    """Archive an incident (requires admin role and an audit reason)."""
+    try:
+        deleted = await delete_incident(db, incident_id, actor_id=current_user.id, reason=reason)
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     if not deleted:
         raise HTTPException(status_code=404, detail="Incident not found")
     return None
@@ -133,6 +147,9 @@ async def get_response_phases():
 
 @router.get("/{incident_id}/floorplan-history", response_model=list[IncidentFloorplanPinHistoryResponse], dependencies=[Depends(require_role("lead", "admin"))])
 async def floorplan_history(incident_id: int, db: AsyncSession = Depends(get_session)):
+    incident = (await db.execute(select(Incident.id).where(Incident.id == incident_id))).scalar_one_or_none()
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
     rows = (await db.execute(select(IncidentFloorplanPinHistory).where(
         IncidentFloorplanPinHistory.incident_id == incident_id
     ).order_by(IncidentFloorplanPinHistory.created_at.desc()))).scalars().all()

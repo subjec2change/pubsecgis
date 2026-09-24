@@ -120,8 +120,8 @@ export async function updateIncident(
   return res.data;
 }
 
-export async function deleteIncident(id: string): Promise<void> {
-  await client.delete(`/incidents/${id}`);
+export async function deleteIncident(id: string, reason: string): Promise<void> {
+  await client.delete(`/incidents/${id}`, { params: { reason } });
 }
 
 // Broadcast (no auth required)

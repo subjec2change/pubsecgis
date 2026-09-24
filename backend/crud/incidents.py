@@ -275,12 +275,33 @@ async def update_incident(
     return result.scalar_one()
 
 
-async def delete_incident(db: AsyncSession, incident_id: int) -> bool:
+async def delete_incident(
+    db: AsyncSession,
+    incident_id: int,
+    actor_id: Optional[int] = None,
+    reason: Optional[str] = None,
+) -> bool:
     result = await db.execute(select(Incident).where(Incident.id == incident_id))
     incident = result.scalar_one_or_none()
     if not incident:
         return False
-    await db.delete(incident)
-    await db.flush()
+    if actor_id is None or not reason or not reason.strip():
+        raise ValueError("incident deletion requires an actor and reason")
+    if incident.floorplan_version_id is not None:
+        db.add(IncidentFloorplanPinHistory(
+            incident_id=incident.id,
+            floorplan_version_id=incident.floorplan_version_id,
+            floorplan_x=incident.floorplan_x,
+            floorplan_y=incident.floorplan_y,
+            room_label=incident.room_label,
+            actor_id=actor_id,
+            reason=reason.strip(),
+        ))
+    incident.status = "archived"
+    incident.archived_at = datetime.now(timezone.utc)
+    incident.floorplan_version_id = None
+    incident.floorplan_x = None
+    incident.floorplan_y = None
+    incident.room_label = None
     await db.commit()
     return True

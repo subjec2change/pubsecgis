@@ -122,7 +122,6 @@ class IncidentCreate(BaseModel):
     floorplan_x: Optional[float] = Field(None, ge=0, le=1)
     floorplan_y: Optional[float] = Field(None, ge=0, le=1)
     room_label: Optional[str] = Field(None, max_length=120)
-    pin_reason: Optional[str] = Field(None, max_length=2000)
 
     @field_validator("incident_type")
     @classmethod

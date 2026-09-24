@@ -1,3 +1,13 @@
+export function escapeLeafletHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character] ?? character);
+}
+
 export interface FloorplanPin {
   floorplan_version_id: number | string;
   floorplan_x: number;

@@ -6,6 +6,8 @@ Covers:
 """
 import pytest
 from models.database import Location
+from models.schemas import IncidentUpdate
+from routes.incidents import _validate_resolved_correction
 
 
 # ──────────────────────────────────────────────
@@ -155,6 +157,17 @@ class TestIncidentCoordinates:
 # ──────────────────────────────────────────────
 # Task 2: Known-location precedence tests
 # ──────────────────────────────────────────────
+
+class TestResolvedIncidentRules:
+    def test_resolved_incident_cannot_reopen(self):
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException) as excinfo:
+            _validate_resolved_correction("resolved", IncidentUpdate(
+                status="open", floorplan_version_id=None, floorplan_x=None,
+                floorplan_y=None, room_label=None, pin_reason=None,
+            ))
+        assert excinfo.value.status_code == 422
+
 
 class TestKnownLocationPrecedence:
     """Known location coordinates take precedence over explicit map coordinates."""

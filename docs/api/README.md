@@ -221,7 +221,7 @@ Update an incident. Requires `lead` or `admin` role.
 
 ### `DELETE /api/incidents/{incident_id}`
 
-Delete an incident. Requires `admin` role.
+Archive an incident rather than physically deleting it, preserving its identity and floorplan pin history. Requires `admin` role and a non-empty `reason` query parameter.
 
 **Header required:** `Authorization: Bearer <token>`
 

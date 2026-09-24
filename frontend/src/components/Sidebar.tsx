@@ -145,12 +145,14 @@ export default function Sidebar({
   };
 
   const handleDeleteIncident = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this incident?')) return;
+    if (!confirm('Archive this incident? Its history will be preserved.')) return;
+    const reason = prompt('Reason for archiving this incident:')?.trim();
+    if (!reason) return;
     try {
-      await apiDeleteIncident(id);
+      await apiDeleteIncident(id, reason);
       onIncidentCreated();
     } catch (err) {
-      console.error('Failed to delete incident:', err);
+      console.error('Failed to archive incident:', err);
     }
   };
 

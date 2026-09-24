@@ -6,7 +6,7 @@ import type { Incident, BroadcastIncident, ColorMapping, FloorplanEntry } from '
 import { DEFAULT_COLOR_MAP, INCIDENT_TYPE_LABELS } from '../types';
 import { getHeatmapData, getFloorplans } from '../api/endpoints';
 import FloorplanSelector from './FloorplanSelector';
-import { floorplanIncidentPins, normalizedFloorplanPoint } from '../utils/floorplan-pins';
+import { floorplanIncidentPins, normalizedFloorplanPoint, escapeLeafletHtml } from '../utils/floorplan-pins';
 
 interface OfficerMapProps {
   incidents: Incident[];
@@ -218,7 +218,7 @@ export default function OfficerMap({
           L.marker(center as L.LatLngExpression, {
             icon: L.divIcon({
               className: 'floorplan-label',
-              html: `<div style="color: ${building.color}; font-weight: 700; font-size: 14px; font-family: 'IBM Plex Sans', sans-serif; text-shadow: 0 0 8px rgba(0,0,0,0.9); text-align: center; pointer-events: none;">${building.name}</div>`,
+              html: `<div style="color: ${escapeLeafletHtml(building.color)}; font-weight: 700; font-size: 14px; font-family: 'IBM Plex Sans', sans-serif; text-shadow: 0 0 8px rgba(0,0,0,0.9); text-align: center; pointer-events: none;">${escapeLeafletHtml(building.name)}</div>`,
               iconSize: [0, 0],
               iconAnchor: [0, 0],
             }),
@@ -364,10 +364,10 @@ export default function OfficerMap({
         const y = Math.max(0, Math.min(1, Number(incident.floorplan_y)));
         const [[south, west], [north, east]] = entry.bounds;
         const marker = L.marker([north - y * (north - south), west + x * (east - west)], {
-          icon: L.divIcon({ className: 'floorplan-incident-pin', html: `<span>${INCIDENT_TYPE_LABELS[incident.incident_type] || 'Incident'}</span>`, iconSize: [18, 18], iconAnchor: [9, 9] }),
+          icon: L.divIcon({ className: 'floorplan-incident-pin', html: `<span>${escapeLeafletHtml(INCIDENT_TYPE_LABELS[incident.incident_type] || 'Incident')}</span>`, iconSize: [18, 18], iconAnchor: [9, 9] }),
           zIndexOffset: 1000,
         }).addTo(layer);
-        marker.bindPopup(`${INCIDENT_TYPE_LABELS[incident.incident_type] || incident.incident_type}${incident.room_label ? `<br/>${incident.room_label}` : ''}`);
+        marker.bindPopup(`${escapeLeafletHtml(INCIDENT_TYPE_LABELS[incident.incident_type] || incident.incident_type)}${incident.room_label ? `<br/>${escapeLeafletHtml(incident.room_label)}` : ''}`);
         marker.on('click', () => onIncidentClickRef.current?.(incident));
       });
     floorplanIncidentLayersRef.current = layer;
@@ -628,9 +628,9 @@ export default function OfficerMap({
         }
 
         marker.bindPopup(
-          `<strong>${INCIDENT_TYPE_LABELS[incident.incident_type] || incident.incident_type}</strong><br/>` +
-          `Status: ${incident.status}<br/>` +
-          (incident.description ? `<br/>${incident.description}` : '')
+          `<strong>${escapeLeafletHtml(INCIDENT_TYPE_LABELS[incident.incident_type] || incident.incident_type)}</strong><br/>` +
+          `Status: ${escapeLeafletHtml(incident.status)}<br/>` +
+          (incident.description ? `<br/>${escapeLeafletHtml(incident.description)}` : '')
         );
 
         marker.on('click', () => {
@@ -702,8 +702,8 @@ export default function OfficerMap({
         (marker as any)._isBroadcast = true;
 
         marker.bindPopup(
-          `<strong>[Broadcast]</strong> ${INCIDENT_TYPE_LABELS[bi.incident_type] || bi.incident_type}<br/>` +
-          (bi.description ? `<br/>${bi.description}` : '')
+          `<strong>[Broadcast]</strong> ${escapeLeafletHtml(INCIDENT_TYPE_LABELS[bi.incident_type] || bi.incident_type)}<br/>` +
+          (bi.description ? `<br/>${escapeLeafletHtml(bi.description)}` : '')
         );
 
         broadcastMarkersRef.current.set(bi.id, marker);

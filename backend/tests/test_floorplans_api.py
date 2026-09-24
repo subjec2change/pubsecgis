@@ -18,6 +18,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from models.database import Floorplan
 from models.schemas import FloorplanCreate, FloorplanResponse
@@ -299,13 +300,9 @@ class TestDeleteFloorplan:
             await delete_floorplan(floor_id="zzz-test-does-not-exist.floor", db=db)
         assert excinfo.value.status_code == 404
 
-    async def test_happy_path_removes_row(self, db, floorplan_factory):
-        """Delete removes the row and commits."""
+    async def test_happy_path_deactivates_row(self, db, floorplan_factory):
+        """Delete deactivates the row and preserves its immutable version."""
         fp = await floorplan_factory(campus="zzzdel campus", building="zzzdel bldg", floor_name="L1", building_id="zzz-del-bid")
         await delete_floorplan(floor_id=fp.floor_id, db=db)
-        remaining = (
-            await db.execute(
-                select(func.count()).select_from(Floorplan).where(Floorplan.floor_id == fp.floor_id)
-            )
-        ).scalar()
-        assert remaining == 0
+        row = (await db.execute(select(Floorplan).options(selectinload(Floorplan.versions)).where(Floorplan.floor_id == fp.floor_id))).scalar_one()
+        assert row.active is False

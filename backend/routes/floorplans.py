@@ -85,11 +85,11 @@ async def create_floorplan(
     dependencies=[Depends(require_role("admin"))],
 )
 async def delete_floorplan(floor_id: str, db: AsyncSession = Depends(get_session)):
-    """Remove a sheet from the registry (admin). Does not delete the image file."""
+    """Deactivate a sheet without deleting immutable versions or pins."""
     fp = (
         await db.execute(select(Floorplan).where(Floorplan.floor_id == floor_id))
     ).scalar_one_or_none()
     if fp is None:
         raise HTTPException(status_code=404, detail="floorplan not found")
-    await db.delete(fp)
+    fp.active = False
     await db.commit()

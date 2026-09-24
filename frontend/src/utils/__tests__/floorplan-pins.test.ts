@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { floorplanIncidentPins, normalizedFloorplanPoint } from '../../utils/floorplan-pins';
+import {
+  escapeLeafletHtml,
+  floorplanIncidentPins,
+  normalizedFloorplanPoint,
+} from '../../utils/floorplan-pins';
 
 describe('floorplan-local incident pins', () => {
   const bounds: [[number, number], [number, number]] = [[10, 20], [20, 40]];
@@ -16,5 +20,10 @@ describe('floorplan-local incident pins', () => {
       { floorplan_version_id: 7, floorplan_x: null, floorplan_y: 0.1 },
     ];
     expect(floorplanIncidentPins(incidents, 7)).toEqual([incidents[0]]);
+  });
+
+  it('escapes user-controlled popup and label text', () => {
+    expect(escapeLeafletHtml('<img src=x onerror=alert(1)>')).toBe('&lt;img src=x onerror=alert(1)&gt;');
+    expect(escapeLeafletHtml('A & B')).toBe('A &amp; B');
   });
 });
