@@ -106,7 +106,7 @@ When delegating via `agents-orchestrator`, use these scoped specialists:
 - Frontend: 33 tests passing; production build passing.
 - Python compile checks and `git diff --check`: passing.
 - Development database: 32 floorplan versions; no floorplans missing a current version.
-- Fresh isolated-database verification remains open because a prior temporary container exited with code 137.
+- Fresh isolated-database verification: ✅ GitHub CI applied migrations 001–003 to a new PostGIS service and passed the full backend suite; the local development database remains a separate seeded environment.
 
 ## Next-step options
 
