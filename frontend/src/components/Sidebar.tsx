@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import type { Incident, HandoffNote, ColorMapping, FloorplanPinHistory } from '../types';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -9,8 +9,13 @@ import {
   updateIncident as apiUpdateIncident,
 } from '../api/endpoints';
 import { INCIDENT_TYPE_LABELS, DEFAULT_COLOR_MAP, SHIFTS } from '../types';
-import TrendsTab from './TrendsTab';
-import ShiftReportView from './ShiftReportView';
+
+// Recharts (TrendsTab) and the shift-report view are only mounted when their
+// tab is opened — lazy-load them so the recharts bundle stays out of the
+// initial map/login chunk.
+const TrendsTab = lazy(() => import('./TrendsTab'));
+const ShiftReportView = lazy(() => import('./ShiftReportView'));
+const TAB_FALLBACK = <div style={{ padding: 16, opacity: 0.6 }}>Loading…</div>;
 
 const RESPONSE_PHASE_LABELS: Record<string, string> = {
   en_route: 'Officer en route',
@@ -484,18 +489,22 @@ export default function Sidebar({
       {/* Trends & Reports tab */}
       {activeTab === 'trends' && (
         <div style={{ padding: 8, overflowY: 'auto', flex: 1 }}>
-          <TrendsTab
-            colorConfig={colorConfig}
-            filterStatus={filterStatus}
-            onFilterStatusChange={onFilterStatusChange}
-          />
+          <Suspense fallback={TAB_FALLBACK}>
+            <TrendsTab
+              colorConfig={colorConfig}
+              filterStatus={filterStatus}
+              onFilterStatusChange={onFilterStatusChange}
+            />
+          </Suspense>
         </div>
       )}
 
       {/* Shift Report tab (lead/admin only — tab itself is role-gated) */}
       {activeTab === 'reports' && (
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <ShiftReportView />
+          <Suspense fallback={TAB_FALLBACK}>
+            <ShiftReportView />
+          </Suspense>
         </div>
       )}
 

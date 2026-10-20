@@ -102,8 +102,9 @@ When delegating via `agents-orchestrator`, use these scoped specialists:
 
 ## Current verification evidence
 
-- Backend: 100 tests passing on the existing migrated development database.
-- Frontend: 33 tests passing; production build passing.
+- Backend: 101 tests passing on the existing migrated development database.
+- Frontend: 34 tests passing; production build passing.
+- What the frontend tests do NOT cover: they exercise form payloads, pin-change reasons, and utility/version-filtering logic — not a full click-through of exact historical-version selection and reassignment in a browser. Live browser QA is the open gate for that flow.
 - Python compile checks and `git diff --check`: passing.
 - Development database: 32 floorplan versions; no floorplans missing a current version.
 - Fresh isolated-database verification: ✅ GitHub CI applied migrations 001–003 to a new PostGIS service and passed the full backend suite; the local development database remains a separate seeded environment.
@@ -118,10 +119,10 @@ When delegating via `agents-orchestrator`, use these scoped specialists:
 
 
 ### Floorplan Registry & Incident-Local Pins (2026-09-24)
-- **Status:** Implemented in the current uncommitted feature; pending live browser QA and commit/push.
+- **Status:** Implemented, committed, and pushed (feature `b6cb849`, review fixes `254463a`); pending live browser QA only.
 - **What:** Searchable registry-backed floorplans, immutable version snapshots, rotated image overlays, normalized local incident pins, edit/reassign/clear workflow with reasoned history, and report metadata.
 - **Key paths:** `database/migrations/002_floorplans.sql`, `database/migrations/003_incident_floorplan_pins.sql`, `backend/routes/floorplans.py`, `backend/routes/incidents.py`, `frontend/src/components/OfficerMap.tsx`, `frontend/src/components/IncidentForm.tsx`.
-- **Verification:** Backend 100 tests, frontend 33 tests, frontend production build, Python compile, and diff checks pass on the existing development DB. Fresh isolated DB verification remains open.
+- **Verification:** Backend 101 tests, frontend 34 tests, frontend production build, Python compile, and diff checks pass on the existing development DB; GitHub CI verified the same suite against a fresh PostGIS service. Frontend tests cover payloads/reasons/utility logic, not a full browser click-through — that flow still needs live QA.
 
 ### Floorplan Selection & Overlay (2026-09-16) — historical precursor
 - **Status:** Complete ✅

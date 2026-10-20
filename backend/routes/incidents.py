@@ -73,7 +73,6 @@ async def create_incident_route(
     except ValueError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
-    await db.commit()
     return IncidentResponse.from_incident(incident)
 
 
@@ -116,7 +115,6 @@ async def update_incident_route(
     except ValueError as exc:
         await db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    await db.commit()
     return IncidentResponse.from_incident(incident)
 
 

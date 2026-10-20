@@ -1,8 +1,17 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
-import OfficerPage from './components/OfficerPage';
-import BroadcastPage from './components/BroadcastPage';
+
+// Route-level code-splitting: the map-heavy officer and broadcast pages
+// (Leaflet + heat layer + floorplan registry) load only when their route is
+// visited, keeping the login first paint small.
+const OfficerPage = lazy(() => import('./components/OfficerPage'));
+const BroadcastPage = lazy(() => import('./components/BroadcastPage'));
+
+const PAGE_FALLBACK = (
+  <div style={{ padding: 24, opacity: 0.6 }}>Loading…</div>
+);
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -16,29 +25,31 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/officer"
-        element={
-          <ProtectedRoute>
-            <OfficerPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/broadcast"
-        element={<BroadcastPage />}
-      />
-      <Route path="/" element={<Navigate to="/officer" replace />} />
-    </Routes>
+    <Suspense fallback={PAGE_FALLBACK}>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/officer"
+          element={
+            <ProtectedRoute>
+              <OfficerPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/broadcast"
+          element={<BroadcastPage />}
+        />
+        <Route path="/" element={<Navigate to="/officer" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 
