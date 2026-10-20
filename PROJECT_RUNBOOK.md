@@ -109,20 +109,24 @@ When delegating via `agents-orchestrator`, use these scoped specialists:
 - Development database: 32 floorplan versions; no floorplans missing a current version.
 - Fresh isolated-database verification: ✅ GitHub CI applied migrations 001–003 to a new PostGIS service and passed the full backend suite; the local development database remains a separate seeded environment.
 
+## Standing maintenance habits
+
+- After pushing `main` to origin, run `scripts/sync-mirror.sh` to refresh the private backup mirror (`github.com/starsaboveme24/pubsecgis`). It activates the mirror account for the push and restores the primary account afterwards.
+- Re-run floorplan pin browser QA with `scripts/qa_floorplan_pins.py` (needs the dev backend on :8000, vite on :5173, and `QA_ADMIN_TOKEN` exported; minting instructions are in the file header).
+
 ## Next-step options
 
-1. **Close floorplan delivery:** run live browser QA for create/edit/reposition/reassign/history, then commit and push the feature.
-2. **Operational hardening:** install production backup timers and complete a restore drill.
-3. **Data integration:** obtain the MTF CSV sample and implement the duress import.
-4. **Architecture cleanup:** split `OfficerMap` and add bundle code-splitting before mobile work.
-5. **Field workflow:** write a Phase 3 mobile/officer UX spec before implementation.
+1. **Operational hardening:** install production backup timers and complete a restore drill.
+2. **Data integration:** obtain the MTF CSV sample and implement the duress import.
+3. **Field workflow:** write a Phase 3 mobile/officer UX spec before implementation.
+4. **Other campuses:** ingest source PDFs and surveyed footprint coordinates once supplied.
 
 
 ### Floorplan Registry & Incident-Local Pins (2026-09-24)
 - **Status:** Complete ✅ — implemented, committed, pushed, and live-browser-verified (2026-10-20).
 - **What:** Searchable registry-backed floorplans, immutable version snapshots, rotated image overlays, normalized local incident pins, edit/reassign/clear workflow with reasoned history, and report metadata.
 - **Key paths:** `database/migrations/002_floorplans.sql`, `database/migrations/003_incident_floorplan_pins.sql`, `backend/routes/floorplans.py`, `backend/routes/incidents.py`, `frontend/src/components/OfficerMap.tsx`, `frontend/src/components/IncidentForm.tsx`.
-- **Verification:** Backend 101 tests, frontend 34 tests, frontend production build, Python compile, and diff checks pass on the existing development DB; GitHub CI verified the same suite against a fresh PostGIS service. Frontend tests cover payloads/reasons/utility logic, not a full browser click-through — that flow still needs live QA.
+- **Verification:** Backend 101 tests, frontend 34 tests, frontend production build, Python compile, and diff checks pass on the existing development DB; GitHub CI verified the same suite against a fresh PostGIS service. Live browser QA passed all 22 checks (2026-10-20) via `scripts/qa_floorplan_pins.py`.
 
 ### Floorplan Selection & Overlay (2026-09-16) — historical precursor
 - **Status:** Complete ✅
