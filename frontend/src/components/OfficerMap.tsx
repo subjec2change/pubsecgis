@@ -844,7 +844,9 @@ export default function OfficerMap({
       {/* Floorplan Selection Panel (Task 3) */}
       {currentView === 'floorplan' && (
         <div style={{
-          position: 'absolute', top: '1rem', right: '1rem', zIndex: 1000,
+          // below the .map-overlay button stack (top-right) so the clear (✕)
+          // button stays clickable
+          position: 'absolute', top: '6.5rem', right: '1rem', zIndex: 1000,
           background: 'rgba(11, 18, 25, 0.95)', border: '1px solid var(--border)',
           padding: '0.5rem', borderRadius: '6px',
         }}>
