@@ -635,11 +635,17 @@ This host deliberately differs from the defaults above:
   dump directory as single-copy: copy it out manually before any disk or
   host change.
 - THIS HOST RUNS TWO DOCKER DAEMONS. `pusecgis-db` lives in the Docker
-  Desktop VM (`DOCKER_HOST=unix:///home/<user>/.docker/desktop/docker.sock`,
+  Desktop VM (`DOCKER_HOST=unix:///home/thx1138/.docker/desktop/docker.sock`,
   context `desktop-linux`), not in the root dockerd on
   `/var/run/docker.sock`. The systemd units read `DOCKER_HOST` from
-  `/etc/default/pubsecgis`; without it, backup and drill exit 5 with
-  "database container 'pusecgis-db' is not running".
+  `/etc/default/pubsecgis`; without that line, backup and drill exit 5 with
+  "database container 'pusecgis-db' is not running". **Verified missing on
+  2026-10-22** — the nightly backup had failed with exit 5 every night since
+  install (2026-09-23) and the Oct 1 drill failed the same way, meaning zero
+  dumps existed on disk. After editing the file, verify with
+  `grep DOCKER_HOST /etc/default/pubsecgis` and one manual run
+  (`sudo systemctl start pusecgis-backup.service` → expect
+  `OK: /var/backups/pusecgis/...` in `journalctl -u pusecgis-backup -n 5`).
 - Consequence: backups depend on Docker Desktop running. It starts on user
   login — if the box reboots unattended, the nightly timer fails (the
   failure log records it; `Persistent=true` catches up after the VM is up).
